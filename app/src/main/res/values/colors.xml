@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="header_bg">#FF009ACE</color>
+    <color name="body_bg">#FFECF6FA</color>
+    <color name="footer_bg">#FFB4BEC7</color>
+    <color name="success_bg">#FF28A745</color>
+    <color name="success_info_bg">#FFC7EDCD</color>
+    <color name="error_bg">#FFFF226F</color>
+    <color name="error_info_bg">#FFFBA8C5</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
