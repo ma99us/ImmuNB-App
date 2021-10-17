@@ -10,7 +10,6 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.volley.AuthFailureError;
@@ -36,6 +35,7 @@ import org.maggus.myhealthnb.http.DocumentRequest;
 import org.maggus.myhealthnb.http.JsonRequest;
 import org.maggus.myhealthnb.http.ResponseListener;
 import org.maggus.myhealthnb.ui.SharedViewModel;
+import org.maggus.myhealthnb.ui.StatusFragment;
 
 import java.io.IOException;
 import java.net.CookieHandler;
@@ -48,15 +48,13 @@ import java.util.Map;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
-public class HomeFragment extends Fragment {
+public class HomeFragment extends StatusFragment {
 
     private SharedViewModel sharedModel;
     private FragmentHomeBinding binding;
-    private TextView textView;
     private LinearLayout loginSubLayout;
     private LinearLayout resetSubLayout;
     private Button buttonLogin;
@@ -129,10 +127,10 @@ public class HomeFragment extends Fragment {
 
     private void formatImmunizations(ImmunizationsDTO.PatientImmunizationDTO dto) {
         if (dto == null) {
-            setHtmlText("<h6>No Immunization records.<br>Please login to MyHealthNB first.</h6>");
+            setHtmlText("<h6>No Immunization records.<br>Please login to MyHealthNB first, to synchronize your immunization profile.</h6>");
         } else {
             StringBuilder sb = new StringBuilder();
-            sb.append("<h2>COVID-19 Immunization Record</h2>");
+            sb.append("<h6>COVID-19 Immunization Record</h6>");
             sb.append("<h3><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName() + " " + dto.getLastName() + "</font></h3>");
             sb.append("<h6>" + dto.getDateOfBirth() + "</h6>");
             sb.append("<hr>");
@@ -146,27 +144,6 @@ public class HomeFragment extends Fragment {
         updateUI();
     }
 
-    private void formatErrorText(String error) {
-        if (error != null && !error.isEmpty()) {
-            setHtmlText("<h2><font color='" + colorFromRes(R.color.error_bg) + "'>" + error + "</font></h2>");
-        } else {
-            setHtmlText("<h2><font color='" + colorFromRes(R.color.success_bg) + "'>OK</font></h2>");
-        }
-    }
-
-    private void setHtmlText(String html) {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            textView.setText(Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY));
-        } else {
-            textView.setText(Html.fromHtml(html));
-        }
-    }
-
-    private String colorFromRes(int id) {
-        int color = getResources().getColor(id);
-        return "#" + String.format("%X", color).substring(2); // !!strip alpha value!!
-    }
-
     public void onResetData() {
         sharedModel.setAuthState(null);
         sharedModel.setEnvConfig(null);
@@ -177,7 +154,7 @@ public class HomeFragment extends Fragment {
      * For #TEST ONLY!
      */
     public void onDummyLogin() {
-        textView.setText("Connecting...");
+        formatStatusText("Connecting...");
 
         ImmunizationsDTO immunizationsDTO = ImmunizationsDTO.buildDummyDTO();
         sharedModel.setImmunizations(immunizationsDTO.getPatientImmunization());
@@ -191,7 +168,7 @@ public class HomeFragment extends Fragment {
             return;
         }
 
-        textView.setText("Connecting...");
+        formatStatusText("Connecting...");
 
         sharedModel.setDeviceId(AuthState.generateDeviceId(getContext()));
         sharedModel.setNonce(AuthState.generateRandomString(8));
@@ -217,7 +194,7 @@ public class HomeFragment extends Fragment {
     }
 
     private Request downloadEnvConfig(RequestQueue queue) {
-        textView.setText("Loading environment...");
+        formatStatusText("Loading environment...");
 
         final String url = "https://myhealthnb.verosource.com/env-config.js";
 
@@ -239,13 +216,13 @@ public class HomeFragment extends Fragment {
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        formatErrorText("Config didn't work!");
+                        formatStatusText("Config didn't work!", Status.Error);
                     }
                 }));
     }
 
     private Request getIndex(RequestQueue queue) {
-        textView.setText("Loading Authorization...");
+        formatStatusText("Loading Authorization...");
 
         //final String url = "https://access.id.gnb.ca/as/authorization.oauth2";
         final String url = sharedModel.getEnvConfig().getProperty("DIGITAL_ID_API_URL") + "authorization.oauth2";
@@ -277,7 +254,7 @@ public class HomeFragment extends Fragment {
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         Log.e("http", "That didn't work!", error);
-                        formatErrorText("Site didn't work!");
+                        formatStatusText("Site didn't work!", Status.Error);
                     }
                 }) {
 
@@ -295,7 +272,7 @@ public class HomeFragment extends Fragment {
     }
 
     private Request postLogin(RequestQueue queue) {
-        textView.setText("Logging in...");
+        formatStatusText("Logging in...");
 
         //final String url = "https://access.id.gnb.ca/as/wUdzI/resume/as/authorization.ping";
         final String url = "https://access.id.gnb.ca" + sharedModel.getAuthState().getLoginFormAction();
@@ -330,7 +307,7 @@ public class HomeFragment extends Fragment {
 
                         if (sharedModel.getAuthState().getAuthorizationCode() == null) {
                             Log.e("http", "Login didn't work!", error);
-                            formatErrorText("Login didn't work!");
+                            formatStatusText("Login didn't work!", Status.Error);
                             return; // stop here
                         }
 
@@ -351,7 +328,7 @@ public class HomeFragment extends Fragment {
     }
 
     private Request postAuthenticationLogin(RequestQueue queue) {
-        textView.setText("Authorizing user...");
+        formatStatusText("Authorizing user...");
 
         final String url = sharedModel.getEnvConfig().getProperty("API_URL") + "v1/authentication/login";     // "https://myhealthnb.verosource.com/results-gateway/v1/authentication/login"
 
@@ -382,7 +359,7 @@ public class HomeFragment extends Fragment {
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         Log.e("http", "Authorization didn't work!", error);
-                        formatErrorText("Authorization didn't work!");
+                        formatStatusText("Authorization didn't work!", Status.Error);
                     }
                 }) {
             @Override
@@ -393,7 +370,7 @@ public class HomeFragment extends Fragment {
     }
 
     private Request getDemographics(RequestQueue queue) {
-        textView.setText("Loading Demographics...");
+        formatStatusText("Loading Demographics...");
 
         final String url = sharedModel.getEnvConfig().getProperty("API_URL") + "v1/demographics/";     //"https://myhealthnb.verosource.com/results-gateway/v1/demographics/";
 
@@ -415,7 +392,7 @@ public class HomeFragment extends Fragment {
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         Log.e("http", "Demographics didn't work!", error);
-                        formatErrorText("Demographics didn't work!");
+                        formatStatusText("Demographics didn't work!", Status.Error);
                     }
                 }) {
             @Override
@@ -426,7 +403,7 @@ public class HomeFragment extends Fragment {
     }
 
     private Request getImmunizations(RequestQueue queue) {
-        textView.setText("Loading Immunizations...");
+        formatStatusText("Loading Immunizations...");
 
         final String url = sharedModel.getEnvConfig().getProperty("API_URL") + "v1/immunization/";            // "https://myhealthnb.verosource.com/results-gateway/v1/immunization/";
 
@@ -445,8 +422,8 @@ public class HomeFragment extends Fragment {
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Log.e("http", "Immunizations didn't work!", error);
-                        formatErrorText("Immunizations didn't work!");
+                        Log.e("http", "Immunizations records didn't work!", error);
+                        formatStatusText("Immunizations records didn't work!", Status.Error);
                     }
                 }) {
             @Override
