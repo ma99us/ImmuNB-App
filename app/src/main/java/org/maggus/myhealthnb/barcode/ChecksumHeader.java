@@ -11,13 +11,15 @@ public class ChecksumHeader implements JabBarcodeHeader{
     @Override
     public void populate(Object dto, String payload) {
         //TODO: maybe use original DTO to get the checksum rather then payload barcode portion string?
-        checksum = JabBarcode.hashString(payload);
+        JabBarcode.Hasher hasher = new JabBarcode.Hasher();
+        checksum = hasher.hashString(payload);
     }
 
     @Override
     public void validate(Object dto, String payload) throws IOException {
         //TODO: maybe use resulting DTO to get the checksum rather then payload barcode portion string?
-        long hash = JabBarcode.hashString(payload);
+        JabBarcode.Hasher hasher = new JabBarcode.Hasher();
+        long hash = hasher.hashString(payload);
         if (checksum != hash) {
             throw new IOException("Barcode checksum mismatch; expected " + checksum + ", but got " + hash);
         }
@@ -29,7 +31,7 @@ public class ChecksumHeader implements JabBarcodeHeader{
     }
 
     @Override
-    public String deobfuscate(Object dto, String payload) {
+    public String deobfuscate(Object dto, String payload) throws IOException  {
         return payload; // do nothing
     }
 }

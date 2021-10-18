@@ -127,16 +127,20 @@ public class HomeFragment extends StatusFragment {
 
     private void formatImmunizations(ImmunizationsDTO.PatientImmunizationDTO dto) {
         if (dto == null) {
-            setHtmlText("<h6>No Immunization records.<br>Please login to MyHealthNB first, to synchronize your immunization profile.</h6>");
+            setHtmlText("<h6>No Immunization records.<br>Please login to MyHealthNB first, to synchronize your profile.</h6>");
         } else {
             StringBuilder sb = new StringBuilder();
             sb.append("<h6>COVID-19 Immunization Record</h6>");
             sb.append("<h3><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName() + " " + dto.getLastName() + "</font></h3>");
             sb.append("<h6>" + dto.getDateOfBirth() + "</h6>");
-            sb.append("<hr>");
-            for (ImmunizationsDTO.PatientImmunizationDTO.ImmunizationDTO immuDto : dto.getImmunizations()) {
-                sb.append("<p><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + immuDto.getVaccinationDate() + "</font></b> "
-                        + immuDto.getTradeName() + "</p>");
+//            sb.append("<br>");
+            if (dto.getImmunizations() != null) {
+                for (ImmunizationsDTO.PatientImmunizationDTO.ImmunizationDTO immuDto : dto.getImmunizations()) {
+                    sb.append("<p><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + immuDto.getVaccinationDate() + "</font></b> "
+                            + immuDto.getTradeName() + "</p>");
+                }
+            } else {
+                sb.append("<p><b><font color='" + colorFromRes(R.color.error_info_bg) + "'> Unvaccinated</font></b></p>");
             }
             setHtmlText(sb.toString());
         }
@@ -156,7 +160,7 @@ public class HomeFragment extends StatusFragment {
     public void onDummyLogin() {
         formatStatusText("Connecting...");
 
-        ImmunizationsDTO immunizationsDTO = ImmunizationsDTO.buildDummyDTO();
+        ImmunizationsDTO immunizationsDTO = ImmunizationsDTO.buildDummyDTO(false, false, false);    // #TEST
         sharedModel.setImmunizations(immunizationsDTO.getPatientImmunization());
     }
 

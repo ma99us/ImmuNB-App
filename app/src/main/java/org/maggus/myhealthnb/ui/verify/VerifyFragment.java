@@ -9,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,6 +18,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import org.maggus.myhealthnb.R;
 import org.maggus.myhealthnb.api.dto.ImmunizationsDTO;
+import org.maggus.myhealthnb.barcode.ChecksumCryptoHeader;
 import org.maggus.myhealthnb.barcode.ChecksumHeader;
 import org.maggus.myhealthnb.barcode.JabBarcode;
 import org.maggus.myhealthnb.databinding.FragmentVerifyBinding;
@@ -46,6 +48,7 @@ public class VerifyFragment extends StatusFragment {
     private PreviewView previewView;
     private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
     private LinearLayout scannedDataLayout;
+    private ImageView dataStatusImageView;
     private TextView textDataView;
     private Button buttonOk;
 
@@ -60,6 +63,7 @@ public class VerifyFragment extends StatusFragment {
         View root = binding.getRoot();
 
         textView = binding.textNotifications;
+        dataStatusImageView = binding.dataStatusImageView;
         textDataView = binding.textData;
         buttonOk = binding.buttonOk;
         buttonOk.setOnClickListener(new View.OnClickListener() {
@@ -187,15 +191,21 @@ public class VerifyFragment extends StatusFragment {
         if (scannedDto != null) {
             return;
         }
-        Log.d("barcode", "QR Code Found: " + qrCode);
+        Log.d("barcode", "QR Code scanned (" + qrCode.length() + " chars): \"" + qrCode + "\"");
 //        Toast.makeText(getContext(), qrCode, Toast.LENGTH_SHORT).show();
 //        textView.setText("Barcode found");
         try {
             JabBarcode jabBarcode = new JabBarcode();
-            scannedDto = jabBarcode.barcodeToObject(qrCode, ChecksumHeader.class, ImmunizationsDTO.PatientImmunizationDTO.class);
+            if(!jabBarcode.isPossibleJabBarcode(qrCode)){
+                throw new IllegalArgumentException("Does not look like JAB barcode format");
+            }
+            jabBarcode.getRegistry()
+                    .registerFormat(ChecksumHeader.class, ImmunizationsDTO.PatientImmunizationDTO.class)
+                    .registerFormat(ChecksumCryptoHeader.class, ImmunizationsDTO.PatientImmunizationDTO.class);
+            scannedDto = (ImmunizationsDTO.PatientImmunizationDTO) jabBarcode.barcodeToObject(qrCode);
             formatStatusText("Barcode scanned", Status.Success);
             formatImmunizations(scannedDto);
-        } catch (IOException e) {
+        } catch (Exception e) {
             Log.w("barcode", "Barcode parsing failed", e);
             formatStatusText("Unrecognized barcode", Status.Error);
         }
@@ -203,17 +213,77 @@ public class VerifyFragment extends StatusFragment {
 
     private void formatImmunizations(ImmunizationsDTO.PatientImmunizationDTO dto) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<h2>COVID-19 Immunization Record</h2>");
-        sb.append("<h3><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName() + " " + dto.getLastName() + "</font></h3>");
-        sb.append("<h6>" + dto.getDateOfBirth() + "</h6>");
-        sb.append("<hr>");
-        for (ImmunizationsDTO.PatientImmunizationDTO.ImmunizationDTO immuDto : dto.getImmunizations()) {
-            sb.append("<p><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + immuDto.getVaccinationDate() + "</font></b> "
-                    + immuDto.getTradeName() + "</p>");
+        sb.append("<h6>COVID-19 Immunization Record</h6>");
+        sb.append("<big><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName().toUpperCase() + " "
+                + dto.getLastName().toUpperCase() + "</font></b></big><br>");
+        sb.append("<b>" + dto.getDateOfBirth() + "</b>");
+//        sb.append("<br>");
+        String latestCovidImmunizationDate = null;
+        int latestCovidImmunizationDoseNo = 0;
+        if (dto.getImmunizations() != null) {
+            for (ImmunizationsDTO.PatientImmunizationDTO.ImmunizationDTO immuDto : dto.getImmunizations()) {
+//            sb.append("<p><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + immuDto.getVaccinationDate() + "</font></b> "
+//                    + immuDto.getTradeName() + "</p>");
+
+//            if(immuDto.getTradeName().toUpperCase().contains("COVID")){   // TODO: just assume all vaccines against COVID for now?
+                int doseNo = Integer.parseInt(immuDto.getDoseNumber());
+                if (doseNo > latestCovidImmunizationDoseNo) {
+                    latestCovidImmunizationDoseNo = doseNo;
+                    latestCovidImmunizationDate = immuDto.getVaccinationDate();
+                }
+//            }
+            }
         }
+        String statusStr = getVaccinationStatusForDozeNumber(latestCovidImmunizationDoseNo);
+        boolean isFullyVaccinated = isFullyVaccinated(latestCovidImmunizationDoseNo, latestCovidImmunizationDate);
+        int color = isFullyVaccinated ? R.color.success_bg : R.color.error_bg;
+        dataStatusImageView.setImageResource(isFullyVaccinated ? R.drawable.ic_baseline_verified_user_24 : R.drawable.ic_baseline_error_24);
+        dataStatusImageView.setColorFilter(ContextCompat.getColor(getContext(), color), android.graphics.PorterDuff.Mode.SRC_IN);
+//        sb.append("<p>is<hr>");
+        sb.append("<p>");
+        sb.append("<b><font color='" + colorFromRes(color) + "'>" + statusStr.toUpperCase() + "</font></b>");
+        if (latestCovidImmunizationDate != null) {
+            sb.append("<br><b>since</b><br>");
+            sb.append("<b><font color='" + colorFromRes(color) + "'>" + latestCovidImmunizationDate + "</font></b>");
+        }
+        sb.append("</p>");
+
         setHtmlText(sb.toString(), textDataView);
 
         updateUI();
+    }
+
+    private String getVaccinationStatusForDozeNumber(int doseNo){
+        if(doseNo <= 0){
+            return "Unvaccinated";
+        }
+        else if(doseNo == 1){
+            return "Partially vaccinated";
+        }
+        else if(doseNo == 2){
+            return "Double-vaccinated"; // aka "Fully vaccinated"
+        }
+        // real future-proofing right here :-)
+        else if(doseNo == 3){
+            return "Triple-vaccinated";
+        }
+        else if(doseNo == 4){
+            return "Quadruple-vaccinated";
+        }
+        else if(doseNo == 5){
+            return "Quintuple-vaccinated";
+        }
+        else if(doseNo == 6){
+            return "Sextuple-vaccinated";
+        }
+        else{
+            return "Super-vaccinated";  // :-)
+        }
+    }
+
+    private boolean isFullyVaccinated(int doseNo, String lastDate){
+        //TODO: maybe also check the data to be older then 2 weeks?
+        return doseNo >=2;
     }
 
     private void onClearScannedData() {

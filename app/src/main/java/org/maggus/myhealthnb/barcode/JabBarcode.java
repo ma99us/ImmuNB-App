@@ -1,5 +1,7 @@
 package org.maggus.myhealthnb.barcode;
 
+import android.util.Base64;
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -10,12 +12,22 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.Getter;
 
 /**
  * My custom barcode format called JAB (Json Array Barcode) looks like this:
@@ -28,11 +40,47 @@ import java.util.Map;
 public class JabBarcode {
     public static final String PREFIX = "JAB";
     public static final String DELIMITER = "|";
+    private static final Hasher hasher = new Hasher();
+    @Getter
+    private final Registry registry = new Registry();
 
     private final ObjectMapper mapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 //            .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
             ;
+
+    /**
+     * Quick check that barcode looks like a correct format
+     * @param barcode
+     * @return possible JabBarcode, and parsing could be attempted
+     */
+    public boolean isPossibleJabBarcode(String barcode) {
+        if (barcode != null
+                && barcode.startsWith(PREFIX + DELIMITER)
+                && barcode.indexOf("|", (PREFIX + DELIMITER).length() + 1) > 0
+                && barcode.indexOf("[") > 0
+                && barcode.endsWith("]")) {
+            return true;
+        }
+        return false;
+    }
+
+    public long findJabBarcodeFormatId(String barcode) {
+        if (!isPossibleJabBarcode(barcode)) {
+            return -1L; // bad format
+        }
+        try {
+            barcode = barcode.substring((PREFIX + DELIMITER).length());
+            int p0 = barcode.indexOf('|');
+            if (p0 <= 0) {
+                return -1L;  // no format id
+            }
+            return Long.parseLong(barcode.substring(0, p0));
+        } catch (Exception ex) {
+            // bad format id value
+            return -1L;
+        }
+    }
 
     public <H extends JabBarcodeHeader, P> String objectToBarcode(H header, P payload) throws IOException {
         StringBuilder sb = new StringBuilder();
@@ -43,12 +91,27 @@ public class JabBarcode {
         sb.append(DELIMITER);
         String payloadStr = objectValuesToJsonArrayString(payload);
         if (header != null) {
-            header.populate(payload, payloadStr);   // populate the header
+            // populate the header
+            header.populate(payload, payloadStr);
+            // encrypt the payload
+            payloadStr = header.obfuscate(payload, payloadStr);
             sb.append(objectValuesToJsonArrayString(header));
         }
         sb.append(payloadStr);
 
         return sb.toString();
+    }
+
+    public Object barcodeToObject(String barcode) throws IOException {
+        long formatId = findJabBarcodeFormatId(barcode);
+        if (formatId == -1) {
+            throw new IOException("Unrecognized barcode format");
+        }
+        Registry.JabBarcodeFormat<?, ?> format = registry.findFormat(formatId);
+        if(format == null){
+            throw new IOException("Unregistered barcode format id: " + formatId);
+        }
+        return barcodeToObject(barcode, format.getHeaderClass(), format.getPayloadClass());
     }
 
     public <H extends JabBarcodeHeader, P> P barcodeToObject(String barcode, Class<H> headerClass, Class<P> payloadClass) throws IOException {
@@ -77,21 +140,23 @@ public class JabBarcode {
             }
             header = jsonArrayStringToObject(barcode.substring(0, p1 + 1), headerClass);
             barcode = barcode.substring(p1 + 1);
+            // decrypt barcode payload
+            barcode = header.deobfuscate(null, barcode);
         }
         P payload = jsonArrayStringToObject(barcode, payloadClass);
-        // validate the header
         if (header != null) {
+            // validate checksum
             header.validate(payload, barcode);
         }
         return payload;
     }
 
-    public String objectValuesToJsonArrayString(Object obj) throws IOException {
+    private String objectValuesToJsonArrayString(Object obj) throws IOException {
         List<Object> beanDataValues = getObjectValues(obj);
         return mapper.writeValueAsString(beanDataValues);
     }
 
-    public <T> T jsonArrayStringToObject(String json, Class<T> clazz) throws IOException {
+    private <T> T jsonArrayStringToObject(String json, Class<T> clazz) throws IOException {
         List<Object> beanDataValues = mapper.readValue(json, ArrayList.class);
         return parseObjectValues(beanDataValues, clazz);
     }
@@ -152,7 +217,7 @@ public class JabBarcode {
                 List<Object> arrValue = new ArrayList<Object>();
                 if (objectValue.getClass().isArray()) {
                     int length = Array.getLength(objectValue);
-                    for (int i = 0; i < length; i ++) {
+                    for (int i = 0; i < length; i++) {
                         Object elem = Array.get(objectValue, i);
                         arrValue.add(getObjectValues(elem));
                     }
@@ -171,7 +236,19 @@ public class JabBarcode {
     private List<Field> getObjectFieldNames(Class objClass) {
         List<Field> declaredFields = new ArrayList<>();
         for (Class<?> c = objClass; c != null; c = c.getSuperclass()) {
-            declaredFields.addAll(0, Arrays.asList(c.getDeclaredFields()));
+            if (c.equals(Object.class)) {
+                continue;
+            }
+            List<Field> fields = new ArrayList<>(Arrays.asList(c.getDeclaredFields()));
+            // Unfortunately, some JVMs do not guarantee DeclaredFields order, so we have to sort fields ourselfs
+            Collections.sort(fields, new Comparator<Field>() {
+                public int compare(Field f1, Field f2) {
+                    // sort each class fields names alphabetically
+                    return f1.getName().compareTo(f2.getName());
+                }
+            });
+            // parent class fields always go before child's fields
+            declaredFields.addAll(0, fields);
         }
         return declaredFields;
     }
@@ -182,44 +259,33 @@ public class JabBarcode {
 
     private Object getObjectFieldValueByName(Object obj, String fieldName) throws IOException {
         try {
-//            return PropertyUtils.getProperty(obj, fieldName); // @#$%^&!, commons-beanutils do not work on Android!
-            // FIXME: is that a dirty way of getting a value?
-            Method method = obj.getClass().getMethod("get" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1));
-            return method.invoke(obj);
+//            return PropertyUtils.getProperty(obj, fieldName); // Unfortunately, commons-beanutils do not work on Android!
+
+            // TODO: is there a better cross-platform way to getting a field value from object?
+            try {
+                // try to find a 'getter' for this field first
+                Method method = obj.getClass().getMethod("get" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1));
+                return method.invoke(obj);
+            } catch (NoSuchMethodException ex) {
+                // if no 'getter', then try to access field directly. This will fail if it is not public field.
+                Class<?> clazz = obj.getClass();
+                Field field = clazz.getField(fieldName);
+                return field.get(obj);
+            }
         } catch (Exception e) {
-            throw new IOException("Can't 'get' object \"" + obj.getClass().getSimpleName() + "\" field \"" + fieldName + "\" value", e);
+            throw new IOException("Can't access object's \"" + obj.getClass().getSimpleName() + "\" field \"" + fieldName + "\" value", e);
         }
     }
 
-    public static Class<?> getFieldType(Field field){
+    private Class<?> getFieldType(Field field) {
         Class<?> type = field.getType();
-        if(type.isArray()){
+        if (type.isArray()) {
             return type.getComponentType();
-        }
-        else if (List.class.isAssignableFrom(field.getType())) {
+        } else if (List.class.isAssignableFrom(field.getType())) {
             ParameterizedType pt = (ParameterizedType) field.getGenericType();
             return (Class) pt.getActualTypeArguments()[0];
         }
         return type;
-    }
-
-    public static long hashString(String data) {
-        final long MAX_SAFE_INTEGER = 9007199254740991L;      // 2^53 - 1
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(data.getBytes(StandardCharsets.UTF_8));
-            if (digest.length < 8) {      // resulting digest should be at least 8 bytes in length
-                throw new IllegalStateException("Digest is too short");
-            }
-            // only use 8 most significant bytes
-            long msb = 0;
-            for (int i = 0; i < 8; i++) {
-                msb = (msb << 8) | (digest[i] & 0xff);
-            }
-            return Math.abs(msb) % MAX_SAFE_INTEGER;  // unsigned and not larger then MAX_SAFE_INTEGER
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("Exception in hash()", e);
-        }
     }
 
     public static <H extends JabBarcodeHeader, P> long getBarcodeFormatId(Class<H> headerClass, Class<P> payloadClass) {
@@ -228,6 +294,101 @@ public class JabBarcode {
             sb.append(headerClass.getSimpleName());
         }
         sb.append(payloadClass.getSimpleName());
-        return hashString(sb.toString());
+        return hasher.hashString(sb.toString());
+    }
+
+    /**
+     * Simple platform-independent way to create hashes from strings.
+     */
+    public static class Hasher {
+        private final String ALGORITHM = "SHA-256"; // default
+        private final long MAX_SAFE_INTEGER = 9007199254740991L;      // 2^53 - 1 is the maximum "safe" integer for json/javascript
+
+        public long hashString(String data) {
+            try {
+                MessageDigest md = MessageDigest.getInstance(ALGORITHM);
+                byte[] digest = md.digest(data.getBytes(StandardCharsets.UTF_8));
+                if (digest.length < 8) {      // resulting digest should be at least 8 bytes in length
+                    throw new IllegalStateException("Digest is too short");
+                }
+                // only use 8 most significant bytes
+                long msb = 0;
+                for (int i = 0; i < 8; i++) {
+                    msb = (msb << 8) | (digest[i] & 0xff);
+                }
+                return Math.abs(msb) % MAX_SAFE_INTEGER;  // unsigned and not larger then MAX_SAFE_INTEGER
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Hash Error", e);
+            }
+        }
+    }
+
+    /**
+     * Simple platform-independent way to encrypt/decrypt strings.
+     */
+    public static class Crypto {
+        private final String ALGORITHM = "Blowfish"; // default
+        private final String MODE = "Blowfish/CBC/PKCS5Padding"; // default
+        private final int IV_LEN = 8;   //TODO: actual IV bytes are generated from the Key?
+
+        public byte[] wrapBytes(byte[] sBytes, int rLen) {
+            int sLen = sBytes.length;
+            byte[] rBytes = new byte[rLen];
+            for (int step = 0, s = 0, r = 0; step < Math.max(rLen, sLen); step++, s++, r++) {
+                s %= sLen;
+                r %= rLen;
+                rBytes[r] = sBytes[s];
+            }
+            return rBytes;
+        }
+
+        public String encryptString(String value, String key) {
+            try {
+                SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(), ALGORITHM);
+                Cipher cipher = Cipher.getInstance(MODE);
+                cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, new IvParameterSpec(wrapBytes(key.getBytes(), IV_LEN)));
+                byte[] values = cipher.doFinal(value.getBytes());
+                return Base64.encodeToString(values, Base64.DEFAULT).trim();
+            } catch (Exception ex) {
+                throw new IllegalArgumentException("Encryption Error", ex);
+            }
+        }
+
+        public String decryptString(String value, String key) {
+            try {
+                byte[] values = Base64.decode(value, Base64.DEFAULT);
+                SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(), ALGORITHM);
+                Cipher cipher = Cipher.getInstance(MODE);
+                cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, new IvParameterSpec(wrapBytes(key.getBytes(), IV_LEN)));
+                return new String(cipher.doFinal(values)).trim();
+            } catch (Exception ex) {
+                throw new IllegalArgumentException("Encryption Error", ex);
+            }
+        }
+    }
+
+    /**
+     * Simple collection of registered barcode formats.
+     * Finds java bean classes from the barcode format id.
+     */
+    public static class Registry {
+        private final Map<Long, JabBarcodeFormat<?, ?>> formats = new HashMap<>();
+
+        public synchronized <H extends JabBarcodeHeader, P> Registry registerFormat(Class<H> headerClass, Class<P> payloadClass) {
+            long barcodeFormatId = getBarcodeFormatId(headerClass, payloadClass);
+            formats.put(barcodeFormatId, new JabBarcodeFormat(headerClass, payloadClass));
+            return this;
+        }
+
+        public synchronized JabBarcodeFormat<?, ?> findFormat(long id) {
+            return formats.get(id);
+        }
+
+        @Data
+        @AllArgsConstructor
+        public static class JabBarcodeFormat<H extends JabBarcodeHeader, P> {
+            private final Class<H> headerClass;
+            private final Class<P> payloadClass;
+        }
     }
 }

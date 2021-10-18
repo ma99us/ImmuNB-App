@@ -34,5 +34,5 @@ public interface JabBarcodeHeader {
      * @param payload obfuscated payload barcode string
      * @return modified payload barcode string
      */
-    String deobfuscate(Object dto, String payload);
+    String deobfuscate(Object dto, String payload) throws IOException ;
 }

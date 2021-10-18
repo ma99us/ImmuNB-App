@@ -16,6 +16,7 @@ import com.google.zxing.common.BitMatrix;
 
 import org.maggus.myhealthnb.R;
 import org.maggus.myhealthnb.api.dto.ImmunizationsDTO;
+import org.maggus.myhealthnb.barcode.ChecksumCryptoHeader;
 import org.maggus.myhealthnb.barcode.ChecksumHeader;
 import org.maggus.myhealthnb.barcode.JabBarcode;
 import org.maggus.myhealthnb.databinding.FragmentShareBinding;
@@ -77,7 +78,7 @@ public class ShareFragment extends StatusFragment {
             setHtmlText("<h6>No Immunization records for the barcode.<br>Please login to MyHealthNB first.</h6>");
             imageView.setVisibility(View.GONE);
         } else {
-            setHtmlText("<h6>COVID-19 Immunization Record</h6>" +
+            setHtmlText("<h6>Your Immunization barcode</h6>" +
                     "<h3><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName() + " " + dto.getLastName() + "</font></h3>");
 
             imageView.setVisibility(View.VISIBLE);
@@ -90,10 +91,11 @@ public class ShareFragment extends StatusFragment {
                 public void run() {
                     try {
                         JabBarcode jabBarcode = new JabBarcode();
-                        String barcode = jabBarcode.objectToBarcode(new ChecksumHeader(), dto);
-                        if (barcode == null) {
-                            throw new IOException("Barcode is null!");
-                        }
+                        // redacted copy of immunization records, safe to share with public
+                        ImmunizationsDTO.PatientImmunizationDTO filtered = dto.filter();
+                        //String barcode = jabBarcode.objectToBarcode(new ChecksumHeader(), filtered);  // human readable format
+                        String barcode = jabBarcode.objectToBarcode(new ChecksumCryptoHeader(), filtered);  // obfuscated format
+                        Log.d("barcode", "our barcode (" + barcode.length() + " chars): \"" + barcode + "\"");
 
                         Bitmap bitmap = buildQrCode(barcode, width, height);
 
