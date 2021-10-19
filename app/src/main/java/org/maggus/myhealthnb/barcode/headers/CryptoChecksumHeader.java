@@ -1,15 +1,21 @@
-package org.maggus.myhealthnb.barcode;
+package org.maggus.myhealthnb.barcode.headers;
+
+import org.maggus.myhealthnb.barcode.BarcodeConfig;
+import org.maggus.myhealthnb.barcode.JabBarcode;
 
 import java.io.IOException;
 
 import lombok.Data;
 
 @Data
-public class ChecksumCryptoHeader extends ChecksumHeader {
+public class CryptoChecksumHeader extends ChecksumHeader {
     private Long keyId;
 
     @Override
     public String obfuscate(Object dto, String payload) {
+        // shrink 'null's
+        payload = super.obfuscate(dto, payload);
+
         // populate key id
         keyId = new JabBarcode.Hasher().hashString(BarcodeConfig.CRYPTO_KEY + BarcodeConfig.CRYPTO_SALT);
 
@@ -32,6 +38,10 @@ public class ChecksumCryptoHeader extends ChecksumHeader {
         if (!decrypted.startsWith("[") || !decrypted.endsWith("]")) {
             throw new IOException("Unexpected decrypted barcode payload");
         }
+
+        // inflate 'null's back
+        decrypted = super.deobfuscate(dto, decrypted);
+
         return decrypted;
     }
 }

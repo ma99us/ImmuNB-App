@@ -41,6 +41,7 @@ dependencies {
     implementation "androidx.camera:camera-lifecycle:1.0.1"
     implementation "androidx.camera:camera-view:1.0.0-alpha27"
     implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.23'
+    implementation 'androidx.preference:preference:1.1.1'
     compileOnly 'org.projectlombok:lombok:1.18.22'
     annotationProcessor 'org.projectlombok:lombok:1.18.22'
     testCompileOnly 'org.projectlombok:lombok:1.18.22'

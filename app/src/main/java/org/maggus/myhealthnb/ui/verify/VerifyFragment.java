@@ -1,7 +1,13 @@
 package org.maggus.myhealthnb.ui.verify;
 
 import android.Manifest;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
@@ -18,14 +24,13 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import org.maggus.myhealthnb.R;
 import org.maggus.myhealthnb.api.dto.ImmunizationsDTO;
-import org.maggus.myhealthnb.barcode.ChecksumCryptoHeader;
-import org.maggus.myhealthnb.barcode.ChecksumHeader;
 import org.maggus.myhealthnb.barcode.JabBarcode;
+import org.maggus.myhealthnb.barcode.headers.ChecksumHeader;
+import org.maggus.myhealthnb.barcode.headers.CryptoChecksumHeader;
 import org.maggus.myhealthnb.databinding.FragmentVerifyBinding;
 import org.maggus.myhealthnb.ui.SharedViewModel;
 import org.maggus.myhealthnb.ui.StatusFragment;
 
-import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 import androidx.annotation.NonNull;
@@ -39,6 +44,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.preference.PreferenceManager;
 
 public class VerifyFragment extends StatusFragment {
     private static final int PERMISSION_REQUEST_CAMERA = 0;
@@ -51,6 +57,9 @@ public class VerifyFragment extends StatusFragment {
     private ImageView dataStatusImageView;
     private TextView textDataView;
     private Button buttonOk;
+    private Ringtone goodSound;
+    private Ringtone badSound;
+    private boolean playSounds;
 
     private ImmunizationsDTO.PatientImmunizationDTO scannedDto;
 
@@ -73,15 +82,15 @@ public class VerifyFragment extends StatusFragment {
         });
         scannedDataLayout = binding.scannedDataLayout;
 
-//        notificationsViewModel.getText().observe(getViewLifecycleOwner(), new Observer<String>() {
-//            @Override
-//            public void onChanged(@Nullable String s) {
-//                textView.setText(s);
-//            }
-//        });
-
-//        IntentIntegrator integrator = new IntentIntegrator(getActivity());
-//        integrator.initiateScan();
+        try {
+//          final MediaPlayer mp = MediaPlayer.create(this, R.raw.success_sound);  // TODO: play nicer custom sounds
+            Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            goodSound = RingtoneManager.getRingtone(getContext(), notification);
+            Uri alarm = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+            badSound = RingtoneManager.getRingtone(getContext(), alarm);
+        } catch (Exception e) {
+            Log.w("sound", "Can't initiate sounds");
+        }
 
         previewView = binding.cameraPreviewView;
 
@@ -95,28 +104,34 @@ public class VerifyFragment extends StatusFragment {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+        playSounds = prefs.getBoolean("play_sounds", true);
+        Log.d("sounds", "Sounds " + (playSounds ? " enabled" : " disabled"));
+    }
+
+    @Override
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
     }
-
-//    @Override
-//    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-//        IntentResult scanResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
-//        if (scanResult != null) {
-//            // handle scan result
-//            Log.d("barcode", "barcode result: " + scanResult);
-//        } else {
-//            super.onActivityResult(requestCode, resultCode, data);
-//        }
-//    }
 
     private void requestCamera() {
         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera();
         } else {
             if (ActivityCompat.shouldShowRequestPermissionRationale(getActivity(), Manifest.permission.CAMERA)) {
-                ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CAMERA);
+                new AlertDialog.Builder(getContext())
+                        .setTitle("Allow the App accessing this device Camera?")
+                        .setMessage("The App needs to access this device Camera to scan the Vaccination Verification barcodes")
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int whichButton) {
+                                ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CAMERA);
+                            }
+                        })
+                        .setNegativeButton(android.R.string.no, null).show();
             } else {
                 ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CAMERA);
             }
@@ -150,6 +165,7 @@ public class VerifyFragment extends StatusFragment {
     private void bindCameraPreview(@NonNull ProcessCameraProvider cameraProvider) {
         setHtmlText("<h6>Scan Immunization records QR-code</h6>");
 
+        // connect camera to an image preview surface
         previewView.setImplementationMode(PreviewView.ImplementationMode.PERFORMANCE);  // COMPATIBLE ?
 
         Preview preview = new Preview.Builder().build();
@@ -171,20 +187,17 @@ public class VerifyFragment extends StatusFragment {
             @Override
             public void onQRCodeFound(String _qrCode) {
                 onBarcodeFound(_qrCode);
-                //qrCodeFoundButton.setVisibility(View.VISIBLE);
             }
 
             @Override
             public void qrCodeNotFound() {
 //                textView.setText("No barcode");
-                //qrCodeFoundButton.setVisibility(View.INVISIBLE);
-//                Log.d("barcode", "QR Code not found");
             }
         }));
 
-        // bind it all together and to the the app lifecycles
+        // bind it all together to the camera and to the the app lifecycles
         Camera camera = cameraProvider.bindToLifecycle((LifecycleOwner)this, cameraSelector, imageAnalysis, preview);
-        Log.d("barcode", "Camera preview and image analyzer are bound");
+        Log.d("camera", "Camera is ready");
     }
 
     private void onBarcodeFound(String qrCode) {
@@ -192,16 +205,14 @@ public class VerifyFragment extends StatusFragment {
             return;
         }
         Log.d("barcode", "QR Code scanned (" + qrCode.length() + " chars): \"" + qrCode + "\"");
-//        Toast.makeText(getContext(), qrCode, Toast.LENGTH_SHORT).show();
-//        textView.setText("Barcode found");
         try {
             JabBarcode jabBarcode = new JabBarcode();
             if(!jabBarcode.isPossibleJabBarcode(qrCode)){
-                throw new IllegalArgumentException("Does not look like JAB barcode format");
+                throw new IllegalArgumentException("This does not look like JAB barcode format");
             }
             jabBarcode.getRegistry()
                     .registerFormat(ChecksumHeader.class, ImmunizationsDTO.PatientImmunizationDTO.class)
-                    .registerFormat(ChecksumCryptoHeader.class, ImmunizationsDTO.PatientImmunizationDTO.class);
+                    .registerFormat(CryptoChecksumHeader.class, ImmunizationsDTO.PatientImmunizationDTO.class);
             scannedDto = (ImmunizationsDTO.PatientImmunizationDTO) jabBarcode.barcodeToObject(qrCode);
             formatStatusText("Barcode scanned", Status.Success);
             formatImmunizations(scannedDto);
@@ -216,7 +227,9 @@ public class VerifyFragment extends StatusFragment {
         sb.append("<h6>COVID-19 Immunization Record</h6>");
         sb.append("<big><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName().toUpperCase() + " "
                 + dto.getLastName().toUpperCase() + "</font></b></big><br>");
-        sb.append("<b>" + dto.getDateOfBirth() + "</b>");
+        if (dto.getDateOfBirth() != null) {
+            sb.append("<b>" + dto.getDateOfBirth() + "</b>");
+        }
 //        sb.append("<br>");
         String latestCovidImmunizationDate = null;
         int latestCovidImmunizationDoseNo = 0;
@@ -224,14 +237,13 @@ public class VerifyFragment extends StatusFragment {
             for (ImmunizationsDTO.PatientImmunizationDTO.ImmunizationDTO immuDto : dto.getImmunizations()) {
 //            sb.append("<p><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + immuDto.getVaccinationDate() + "</font></b> "
 //                    + immuDto.getTradeName() + "</p>");
-
-//            if(immuDto.getTradeName().toUpperCase().contains("COVID")){   // TODO: just assume all vaccines against COVID for now?
-                int doseNo = Integer.parseInt(immuDto.getDoseNumber());
-                if (doseNo > latestCovidImmunizationDoseNo) {
-                    latestCovidImmunizationDoseNo = doseNo;
-                    latestCovidImmunizationDate = immuDto.getVaccinationDate();
+                if (isCovidVaccination(immuDto)) {
+                    int doseNo = Integer.parseInt(immuDto.getDoseNumber());
+                    if (doseNo > latestCovidImmunizationDoseNo) {
+                        latestCovidImmunizationDoseNo = doseNo;
+                        latestCovidImmunizationDate = immuDto.getVaccinationDate();
+                    }
                 }
-//            }
             }
         }
         String statusStr = getVaccinationStatusForDozeNumber(latestCovidImmunizationDoseNo);
@@ -251,6 +263,13 @@ public class VerifyFragment extends StatusFragment {
         setHtmlText(sb.toString(), textDataView);
 
         updateUI();
+
+        doSounds(true, isFullyVaccinated);
+    }
+
+    private boolean isCovidVaccination(ImmunizationsDTO.PatientImmunizationDTO.ImmunizationDTO immuDto){
+        return true;    // TODO: just assume all listed vaccines are against COVID for now?
+//        return immuDto.getTradeName().toUpperCase().contains("COVID");
     }
 
     private String getVaccinationStatusForDozeNumber(int doseNo){
@@ -289,6 +308,7 @@ public class VerifyFragment extends StatusFragment {
     private void onClearScannedData() {
         scannedDto = null;
         updateUI();
+        doSounds(false, false);
     }
 
     private void updateUI() {
@@ -298,6 +318,36 @@ public class VerifyFragment extends StatusFragment {
         } else {
             setHtmlText("<h6>Scan and verify an Immunization barcode.</h6>");
             scannedDataLayout.setVisibility(View.GONE);
+        }
+    }
+
+    private void playSound(Ringtone r) {
+        if (!playSounds) {
+            return;
+        }
+        if (r != null && !r.isPlaying()) {
+            r.play();
+        }
+    }
+
+    private void stopSound(Ringtone r) {
+        if (r != null && r.isPlaying()) {
+            r.stop();
+        }
+    }
+
+    private void doSounds(boolean play, boolean isGood) {
+        if (play) {
+            if (isGood) {
+                stopSound(badSound);
+                playSound(goodSound);
+            } else {
+                stopSound(goodSound);
+                playSound(badSound);
+            }
+        } else {
+            stopSound(goodSound);
+            stopSound(badSound);
         }
     }
 }

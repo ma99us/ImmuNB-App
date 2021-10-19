@@ -1,6 +1,19 @@
 <resources>
     <string name="app_name">MyHealthNB Lite</string>
-    <string name="title_home">MyHealthNB</string>
+    <string name="title_home">Your Profile</string>
     <string name="title_dashboard">Share Barcode</string>
     <string name="title_notifications">Verify Barcode</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_settings">App Settings</string>
+
+    <!-- Preference Titles -->
+    <string name="api_settings_header">MyHealthNB settings</string>
+    <string name="ui_settings_header">Verification settings</string>
+
+    <!-- api Preferences -->
+    <string name="signature_title">Your login email</string>
+
+    <!-- ui Preferences -->
+    <string name="show_dob_title">Share your date of birth</string>
+    <string name="play_sounds_title">Play verification sounds</string>
 </resources>

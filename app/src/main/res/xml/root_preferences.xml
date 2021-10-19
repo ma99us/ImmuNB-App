@@ -1,0 +1,24 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+<!--    <PreferenceCategory app:title="@string/api_prefs_header">-->
+<!--        <EditTextPreference-->
+<!--            app:key="signature"-->
+<!--            app:title="@string/signature_title"-->
+<!--            app:useSimpleSummaryProvider="true" />-->
+<!--    </PreferenceCategory>-->
+
+    <PreferenceCategory app:title="@string/ui_settings_header">
+        <SwitchPreferenceCompat
+            app:key="share_dob"
+            app:defaultValue="true"
+            app:summary="Include your date of birth in the barcode"
+            app:title="@string/show_dob_title" />
+
+        <SwitchPreferenceCompat
+            app:key="play_sounds"
+            app:defaultValue="true"
+            app:summary="Play different sounds based on scanned barcode vaccination result"
+            app:title="@string/play_sounds_title" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

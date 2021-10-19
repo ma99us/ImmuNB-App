@@ -1,8 +1,8 @@
-package org.maggus.myhealthnb.barcode;
+package org.maggus.myhealthnb.barcode.headers;
 
 import java.io.IOException;
 
-public interface JabBarcodeHeader {
+public interface BarcodeHeader {
 
     /**
      * Populate header state during barcode creation.

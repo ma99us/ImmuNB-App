@@ -5,6 +5,8 @@ import android.util.Base64;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.maggus.myhealthnb.barcode.headers.BarcodeHeader;
+
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -51,6 +53,7 @@ public class JabBarcode {
 
     /**
      * Quick check that barcode looks like a correct format
+     *
      * @param barcode
      * @return possible JabBarcode, and parsing could be attempted
      */
@@ -82,7 +85,7 @@ public class JabBarcode {
         }
     }
 
-    public <H extends JabBarcodeHeader, P> String objectToBarcode(H header, P payload) throws IOException {
+    public <H extends BarcodeHeader, P> String objectToBarcode(H header, P payload) throws IOException {
         StringBuilder sb = new StringBuilder();
 
         sb.append(PREFIX);
@@ -108,13 +111,13 @@ public class JabBarcode {
             throw new IOException("Unrecognized barcode format");
         }
         Registry.JabBarcodeFormat<?, ?> format = registry.findFormat(formatId);
-        if(format == null){
+        if (format == null) {
             throw new IOException("Unregistered barcode format id: " + formatId);
         }
         return barcodeToObject(barcode, format.getHeaderClass(), format.getPayloadClass());
     }
 
-    public <H extends JabBarcodeHeader, P> P barcodeToObject(String barcode, Class<H> headerClass, Class<P> payloadClass) throws IOException {
+    public <H extends BarcodeHeader, P> P barcodeToObject(String barcode, Class<H> headerClass, Class<P> payloadClass) throws IOException {
         if (barcode == null) {
             return null;
         }
@@ -288,7 +291,7 @@ public class JabBarcode {
         return type;
     }
 
-    public static <H extends JabBarcodeHeader, P> long getBarcodeFormatId(Class<H> headerClass, Class<P> payloadClass) {
+    public static <H extends BarcodeHeader, P> long getBarcodeFormatId(Class<H> headerClass, Class<P> payloadClass) {
         StringBuilder sb = new StringBuilder();
         if (headerClass != null) {
             sb.append(headerClass.getSimpleName());
@@ -329,7 +332,7 @@ public class JabBarcode {
     public static class Crypto {
         private final String ALGORITHM = "Blowfish"; // default
         private final String MODE = "Blowfish/CBC/PKCS5Padding"; // default
-        private final int IV_LEN = 8;   //TODO: actual IV bytes are generated from the Key?
+        private final int IV_LEN = 8;   //TODO: IV bytes are generated from the Key, is that good enough?
 
         public byte[] wrapBytes(byte[] sBytes, int rLen) {
             int sLen = sBytes.length;
@@ -337,7 +340,7 @@ public class JabBarcode {
             for (int step = 0, s = 0, r = 0; step < Math.max(rLen, sLen); step++, s++, r++) {
                 s %= sLen;
                 r %= rLen;
-                rBytes[r] = sBytes[s];
+                rBytes[r] ^= sBytes[s];
             }
             return rBytes;
         }
@@ -347,8 +350,8 @@ public class JabBarcode {
                 SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(), ALGORITHM);
                 Cipher cipher = Cipher.getInstance(MODE);
                 cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, new IvParameterSpec(wrapBytes(key.getBytes(), IV_LEN)));
-                byte[] values = cipher.doFinal(value.getBytes());
-                return Base64.encodeToString(values, Base64.DEFAULT).trim();
+                byte[] encrypted = cipher.doFinal(value.getBytes());
+                return bytesToString(encrypted);
             } catch (Exception ex) {
                 throw new IllegalArgumentException("Encryption Error", ex);
             }
@@ -356,15 +359,24 @@ public class JabBarcode {
 
         public String decryptString(String value, String key) {
             try {
-                byte[] values = Base64.decode(value, Base64.DEFAULT);
+                byte[] encrypted = stringToBytes(value);
                 SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(), ALGORITHM);
                 Cipher cipher = Cipher.getInstance(MODE);
                 cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, new IvParameterSpec(wrapBytes(key.getBytes(), IV_LEN)));
-                return new String(cipher.doFinal(values)).trim();
+                return new String(cipher.doFinal(encrypted));
             } catch (Exception ex) {
                 throw new IllegalArgumentException("Encryption Error", ex);
             }
         }
+
+        public String bytesToString(byte[] bytes){
+            return Base64.encodeToString(bytes, Base64.NO_WRAP);        //TODO: URL_SAFE ?
+        }
+
+        public byte[] stringToBytes(String string) {
+            return Base64.decode(string, Base64.NO_WRAP);       //TODO: URL_SAFE ?
+        }
+
     }
 
     /**
@@ -374,7 +386,7 @@ public class JabBarcode {
     public static class Registry {
         private final Map<Long, JabBarcodeFormat<?, ?>> formats = new HashMap<>();
 
-        public synchronized <H extends JabBarcodeHeader, P> Registry registerFormat(Class<H> headerClass, Class<P> payloadClass) {
+        public synchronized <H extends BarcodeHeader, P> Registry registerFormat(Class<H> headerClass, Class<P> payloadClass) {
             long barcodeFormatId = getBarcodeFormatId(headerClass, payloadClass);
             formats.put(barcodeFormatId, new JabBarcodeFormat(headerClass, payloadClass));
             return this;
@@ -386,7 +398,7 @@ public class JabBarcode {
 
         @Data
         @AllArgsConstructor
-        public static class JabBarcodeFormat<H extends JabBarcodeHeader, P> {
+        public static class JabBarcodeFormat<H extends BarcodeHeader, P> {
             private final Class<H> headerClass;
             private final Class<P> payloadClass;
         }

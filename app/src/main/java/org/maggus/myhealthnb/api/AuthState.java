@@ -49,7 +49,7 @@ public class AuthState {
     }
 
     public static String base64UrlEncodeString(String str) {
-        String encoded = Base64.encodeToString(str.getBytes(StandardCharsets.UTF_8), Base64.DEFAULT);
+        String encoded = Base64.encodeToString(str.getBytes(StandardCharsets.UTF_8), Base64.URL_SAFE);
         encoded = encoded.replaceAll("\\+", "-").
                 replaceAll("\\/", "_").
                 replaceAll("=", "-");

@@ -1,8 +1,11 @@
 package org.maggus.myhealthnb.ui.home;
 
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
-import android.text.Html;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -22,6 +25,7 @@ import com.android.volley.toolbox.Volley;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import org.maggus.myhealthnb.MainActivity;
 import org.maggus.myhealthnb.R;
 import org.maggus.myhealthnb.api.AuthState;
 import org.maggus.myhealthnb.api.EnvConfig;
@@ -29,6 +33,8 @@ import org.maggus.myhealthnb.api.dto.AuthorizationCodeDTO;
 import org.maggus.myhealthnb.api.dto.DemographicsDTO;
 import org.maggus.myhealthnb.api.dto.ImmunizationsDTO;
 import org.maggus.myhealthnb.api.dto.UserAuthorizationDTO;
+import org.maggus.myhealthnb.barcode.JabBarcode;
+import org.maggus.myhealthnb.barcode.headers.CryptoChecksumHeader;
 import org.maggus.myhealthnb.databinding.FragmentHomeBinding;
 import org.maggus.myhealthnb.http.BinaryRequest;
 import org.maggus.myhealthnb.http.DocumentRequest;
@@ -79,16 +85,26 @@ public class HomeFragment extends StatusFragment {
         buttonLogin.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
 //                onLogin();
-                onDummyLogin();  // #TEST ONLY!
+                onDummyLogin(false, true, false);  // for Dev and #TEST ONLY!
             }
         });
         buttonReset = binding.buttonReset;
         buttonReset.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                onResetData();
+                new AlertDialog.Builder(getContext())
+                        .setTitle("Are you sure?")
+                        .setMessage("Delete local copy of your health profile?")
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+
+                            public void onClick(DialogInterface dialog, int whichButton) {
+                                onResetData();
+                                Toast.makeText(getContext(), "Local health profile cleared.",
+                                        Toast.LENGTH_SHORT).show();
+                            }})
+                        .setNegativeButton(android.R.string.no, null).show();
             }
         });
-
 
         sharedModel.getImmunizations().observe(getViewLifecycleOwner(), new Observer<ImmunizationsDTO.PatientImmunizationDTO>() {
             @Override
@@ -99,10 +115,8 @@ public class HomeFragment extends StatusFragment {
 
         formatImmunizations(null);  // TODO: load data from local storage
 
-        //// #TEST
-        loginEmailEdit.setText("gerdov@gmail.com"); // #TEST !  // TODO: remove this!
-        loginPasswordEdit.setText("SosiHooy123%");  // #TEST !  // TODO: remove this!
-        ////
+        // read stored immunization state
+        readPreferences();
 
         return root;
     }
@@ -111,6 +125,42 @@ public class HomeFragment extends StatusFragment {
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+    }
+
+    private void readPreferences() {
+        //// #TEST
+        loginEmailEdit.setText("gerdov@gmail.com"); // #TEST !  // TODO: remove this!
+        loginPasswordEdit.setText("SosiHooy123%");  // #TEST !  // TODO: remove this!
+        ////
+        try {
+            SharedPreferences sharedPref = getActivity().getPreferences(Context.MODE_PRIVATE);
+            String myImmunizationBarcode = sharedPref.getString(ImmunizationsDTO.PatientImmunizationDTO.class.getSimpleName(), null);
+            if (myImmunizationBarcode != null) {
+                ImmunizationsDTO.PatientImmunizationDTO dto = new JabBarcode().barcodeToObject(myImmunizationBarcode, CryptoChecksumHeader.class, ImmunizationsDTO.PatientImmunizationDTO.class);
+                sharedModel.setImmunizations(dto);
+            }
+        } catch (Exception e) {
+            Log.e("preferences", "Error loading app preferences", e);
+            Toast.makeText(getContext(), "Error loading app preferences: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void writePreferences() {
+        try {
+            SharedPreferences sharedPref = getActivity().getPreferences(Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = sharedPref.edit();
+            ImmunizationsDTO.PatientImmunizationDTO dto = sharedModel.getImmunizations().getValue();
+            if (dto != null) {
+                String myImmunizationBarcode = new JabBarcode().objectToBarcode(new CryptoChecksumHeader(), dto);
+                editor.putString(ImmunizationsDTO.PatientImmunizationDTO.class.getSimpleName(), myImmunizationBarcode);
+            } else {
+                editor.remove(ImmunizationsDTO.PatientImmunizationDTO.class.getSimpleName());
+            }
+            editor.apply();
+        } catch (Exception e) {
+            Log.e("preferences", "Error saving app preferences", e);
+            Toast.makeText(getContext(), "Error saving app preferences: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void updateUI() {
@@ -127,13 +177,15 @@ public class HomeFragment extends StatusFragment {
 
     private void formatImmunizations(ImmunizationsDTO.PatientImmunizationDTO dto) {
         if (dto == null) {
-            setHtmlText("<h6>No Immunization records.<br>Please login to MyHealthNB first, to synchronize your profile.</h6>");
+            setHtmlText("<h6>No Immunization records.<br>Please login to your MyHealthNB first, " +
+                    "to synchronize your local profile.</h6>");
         } else {
             StringBuilder sb = new StringBuilder();
-            sb.append("<h6>COVID-19 Immunization Record</h6>");
-            sb.append("<h3><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName() + " " + dto.getLastName() + "</font></h3>");
-            sb.append("<h6>" + dto.getDateOfBirth() + "</h6>");
-//            sb.append("<br>");
+            sb.append("<h6>Your COVID-19 Immunization Record</h6>");
+            sb.append("<big><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName().toUpperCase() + " "
+                    + dto.getLastName().toUpperCase() + "</font></b></big><br>");
+            sb.append("<b>" + dto.getDateOfBirth() + "</b>");
+            //            sb.append("<br>");
             if (dto.getImmunizations() != null) {
                 for (ImmunizationsDTO.PatientImmunizationDTO.ImmunizationDTO immuDto : dto.getImmunizations()) {
                     sb.append("<p><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + immuDto.getVaccinationDate() + "</font></b> "
@@ -152,22 +204,24 @@ public class HomeFragment extends StatusFragment {
         sharedModel.setAuthState(null);
         sharedModel.setEnvConfig(null);
         sharedModel.setImmunizations(null);
+        writePreferences();
     }
 
     /**
      * For #TEST ONLY!
      */
-    public void onDummyLogin() {
-        formatStatusText("Connecting...");
+    public void onDummyLogin(boolean unvaccinated, boolean partial, boolean recent) {
+        formatStatusText("Connecting... (#TEST)");
 
-        ImmunizationsDTO immunizationsDTO = ImmunizationsDTO.buildDummyDTO(false, false, false);    // #TEST
+        ImmunizationsDTO immunizationsDTO = ImmunizationsDTO.buildDummyDTO(unvaccinated, partial, recent);
         sharedModel.setImmunizations(immunizationsDTO.getPatientImmunization());
+        writePreferences();
     }
 
     public void onLogin() {
         String username = loginEmailEdit.getText().toString().trim();
         String password = loginPasswordEdit.getText().toString().trim();
-        if(username.isEmpty() || password.isEmpty()){
+        if (username.isEmpty() || password.isEmpty()) {
             Toast.makeText(getContext(), "Username or Password can not be empty!", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -421,6 +475,7 @@ public class HomeFragment extends StatusFragment {
                             throw new IllegalArgumentException("Can not find immunizations records!");
                         }
                         sharedModel.setImmunizations(response.getPatientImmunization());
+                        writePreferences();
                     }
                 },
                 new Response.ErrorListener() {

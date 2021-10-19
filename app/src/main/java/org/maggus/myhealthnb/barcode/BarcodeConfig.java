@@ -1,7 +1,7 @@
 package org.maggus.myhealthnb.barcode;
 
 /**
- * Some security constants which should remain private!
+ * Some security constants which should kept private!
  * (not like MyHealthNB rest API token :-))
  */
 public class BarcodeConfig {

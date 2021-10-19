@@ -1,11 +1,13 @@
-package org.maggus.myhealthnb.barcode;
+package org.maggus.myhealthnb.barcode.headers;
+
+import org.maggus.myhealthnb.barcode.JabBarcode;
 
 import java.io.IOException;
 
 import lombok.Data;
 
 @Data
-public class ChecksumHeader implements JabBarcodeHeader{
+public class ChecksumHeader extends NoNullHeader {
     private Long checksum;
 
     @Override
@@ -23,15 +25,5 @@ public class ChecksumHeader implements JabBarcodeHeader{
         if (checksum != hash) {
             throw new IOException("Barcode checksum mismatch; expected " + checksum + ", but got " + hash);
         }
-    }
-
-    @Override
-    public String obfuscate(Object dto, String payload) {
-        return payload; // do nothing
-    }
-
-    @Override
-    public String deobfuscate(Object dto, String payload) throws IOException  {
-        return payload; // do nothing
     }
 }
