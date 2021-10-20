@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MyHealthNB Lite</string>
+    <string name="app_name">ImmuNB</string>
     <string name="title_home">Your Profile</string>
     <string name="title_dashboard">Share Barcode</string>
     <string name="title_notifications">Verify Barcode</string>

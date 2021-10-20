@@ -5,8 +5,10 @@ import org.maggus.myhealthnb.barcode.JabBarcode;
 import java.io.IOException;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper=false)
 public class ChecksumHeader extends NoNullHeader {
     private Long checksum;
 

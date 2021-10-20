@@ -311,28 +311,22 @@ public class JabBarcode {
             try {
                 MessageDigest md = MessageDigest.getInstance(ALGORITHM);
                 byte[] digest = md.digest(data.getBytes(StandardCharsets.UTF_8));
-                if (digest.length < 8) {      // resulting digest should be at least 8 bytes in length
-                    throw new IllegalStateException("Digest is too short");
-                }
-                // only use 8 most significant bytes
+
+                // shrink it to 8 bytes
+                digest = wrapBytes(digest, 8);
+
+                // build a long integer value
                 long msb = 0;
-                for (int i = 0; i < 8; i++) {
+                for (int i = 0; i < digest.length; i++) {
                     msb = (msb << 8) | (digest[i] & 0xff);
                 }
-                return Math.abs(msb) % MAX_SAFE_INTEGER;  // unsigned and not larger then MAX_SAFE_INTEGER
+
+                // make it Unsigned and not larger then MAX_SAFE_INTEGER
+                return Math.abs(msb) % MAX_SAFE_INTEGER;
             } catch (Exception e) {
                 throw new IllegalArgumentException("Hash Error", e);
             }
         }
-    }
-
-    /**
-     * Simple platform-independent way to encrypt/decrypt strings.
-     */
-    public static class Crypto {
-        private final String ALGORITHM = "Blowfish"; // default
-        private final String MODE = "Blowfish/CBC/PKCS5Padding"; // default
-        private final int IV_LEN = 8;   //TODO: IV bytes are generated from the Key, is that good enough?
 
         public byte[] wrapBytes(byte[] sBytes, int rLen) {
             int sLen = sBytes.length;
@@ -344,13 +338,23 @@ public class JabBarcode {
             }
             return rBytes;
         }
+    }
+
+    /**
+     * Simple platform-independent way to encrypt/decrypt strings.
+     */
+    public static class Crypto {
+        private final String ALGORITHM = "Blowfish"; // default
+        private final String MODE = "Blowfish/CBC/PKCS5Padding"; // default
+        private final int IV_LEN = 8;
+        private final Hasher hasher = new Hasher();
 
         public String encryptString(String value, String key) {
             try {
-                SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(), ALGORITHM);
+                SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), ALGORITHM);
                 Cipher cipher = Cipher.getInstance(MODE);
-                cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, new IvParameterSpec(wrapBytes(key.getBytes(), IV_LEN)));
-                byte[] encrypted = cipher.doFinal(value.getBytes());
+                cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, new IvParameterSpec(genIV(key)));
+                byte[] encrypted = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
                 return bytesToString(encrypted);
             } catch (Exception ex) {
                 throw new IllegalArgumentException("Encryption Error", ex);
@@ -360,13 +364,18 @@ public class JabBarcode {
         public String decryptString(String value, String key) {
             try {
                 byte[] encrypted = stringToBytes(value);
-                SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(), ALGORITHM);
+                SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), ALGORITHM);
                 Cipher cipher = Cipher.getInstance(MODE);
-                cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, new IvParameterSpec(wrapBytes(key.getBytes(), IV_LEN)));
+                cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, new IvParameterSpec(genIV(key)));
                 return new String(cipher.doFinal(encrypted));
             } catch (Exception ex) {
                 throw new IllegalArgumentException("Encryption Error", ex);
             }
+        }
+
+        protected byte[] genIV(String seed){
+            //TODO: IV bytes are generated from the Key, is that good enough?
+            return hasher.wrapBytes(seed.getBytes(StandardCharsets.UTF_8), IV_LEN);
         }
 
         public String bytesToString(byte[] bytes){

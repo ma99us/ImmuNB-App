@@ -44,6 +44,7 @@ public class ShareFragment extends StatusFragment {
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
+
         sharedModel = new ViewModelProvider(requireActivity()).get(SharedViewModel.class);
 
         binding = FragmentShareBinding.inflate(inflater, container, false);

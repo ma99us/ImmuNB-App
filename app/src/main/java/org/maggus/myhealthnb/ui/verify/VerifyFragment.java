@@ -5,9 +5,7 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.media.Ringtone;
-import android.media.RingtoneManager;
-import android.net.Uri;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
@@ -31,6 +29,7 @@ import org.maggus.myhealthnb.databinding.FragmentVerifyBinding;
 import org.maggus.myhealthnb.ui.SharedViewModel;
 import org.maggus.myhealthnb.ui.StatusFragment;
 
+import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 import androidx.annotation.NonNull;
@@ -57,11 +56,20 @@ public class VerifyFragment extends StatusFragment {
     private ImageView dataStatusImageView;
     private TextView textDataView;
     private Button buttonOk;
-    private Ringtone goodSound;
-    private Ringtone badSound;
+    //    private Ringtone goodSound;
+    private MediaPlayer validSound;
+    //    private Ringtone badSound;
+    private MediaPlayer invalidSound;
+    private MediaPlayer errorSound;
     private boolean playSounds;
 
     private ImmunizationsDTO.PatientImmunizationDTO scannedDto;
+
+    private enum Sound {
+        Valid,
+        Invalid,
+        Error
+    }
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -83,11 +91,14 @@ public class VerifyFragment extends StatusFragment {
         scannedDataLayout = binding.scannedDataLayout;
 
         try {
-//          final MediaPlayer mp = MediaPlayer.create(this, R.raw.success_sound);  // TODO: play nicer custom sounds
-            Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-            goodSound = RingtoneManager.getRingtone(getContext(), notification);
-            Uri alarm = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-            badSound = RingtoneManager.getRingtone(getContext(), alarm);
+            validSound = MediaPlayer.create(getContext(), R.raw.success1);
+            invalidSound = MediaPlayer.create(getContext(), R.raw.error1);
+            errorSound = MediaPlayer.create(getContext(), R.raw.error2);
+            // TODO: or maybe use Ringtones instead?
+//            Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+//            goodSound = RingtoneManager.getRingtone(getContext(), notification);
+//            Uri alarm = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+//            badSound = RingtoneManager.getRingtone(getContext(), alarm);
         } catch (Exception e) {
             Log.w("sound", "Can't initiate sounds");
         }
@@ -113,6 +124,7 @@ public class VerifyFragment extends StatusFragment {
 
     @Override
     public void onDestroyView() {
+        releaseSounds();
         super.onDestroyView();
         binding = null;
     }
@@ -179,9 +191,9 @@ public class VerifyFragment extends StatusFragment {
         // image analyzer
 
         ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
-                        .setTargetResolution(new Size(1280, 720))
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .build();
+                .setTargetResolution(new Size(1280, 720))
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build();
 
         imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(getContext()), new QRCodeImageAnalyzer(new QRCodeFoundListener() {
             @Override
@@ -196,7 +208,7 @@ public class VerifyFragment extends StatusFragment {
         }));
 
         // bind it all together to the camera and to the the app lifecycles
-        Camera camera = cameraProvider.bindToLifecycle((LifecycleOwner)this, cameraSelector, imageAnalysis, preview);
+        Camera camera = cameraProvider.bindToLifecycle((LifecycleOwner) this, cameraSelector, imageAnalysis, preview);
         Log.d("camera", "Camera is ready");
     }
 
@@ -207,7 +219,7 @@ public class VerifyFragment extends StatusFragment {
         Log.d("barcode", "QR Code scanned (" + qrCode.length() + " chars): \"" + qrCode + "\"");
         try {
             JabBarcode jabBarcode = new JabBarcode();
-            if(!jabBarcode.isPossibleJabBarcode(qrCode)){
+            if (!jabBarcode.isPossibleJabBarcode(qrCode)) {
                 throw new IllegalArgumentException("This does not look like JAB barcode format");
             }
             jabBarcode.getRegistry()
@@ -216,9 +228,13 @@ public class VerifyFragment extends StatusFragment {
             scannedDto = (ImmunizationsDTO.PatientImmunizationDTO) jabBarcode.barcodeToObject(qrCode);
             formatStatusText("Barcode scanned", Status.Success);
             formatImmunizations(scannedDto);
+        } catch (IOException e) {
+            Log.e("barcode", "Barcode validation failed", e);
+            formatStatusText("Barcode validation failed", Status.Error);
+            doSounds(true, Sound.Error);
         } catch (Exception e) {
-            Log.w("barcode", "Barcode parsing failed", e);
-            formatStatusText("Unrecognized barcode", Status.Error);
+            Log.w("barcode", "Unrecognized barcode; " + e.getMessage());
+            formatStatusText("Unrecognized barcode", Status.Warning);
         }
     }
 
@@ -264,51 +280,45 @@ public class VerifyFragment extends StatusFragment {
 
         updateUI();
 
-        doSounds(true, isFullyVaccinated);
+        doSounds(true, isFullyVaccinated ? Sound.Valid : Sound.Invalid);
     }
 
-    private boolean isCovidVaccination(ImmunizationsDTO.PatientImmunizationDTO.ImmunizationDTO immuDto){
+    private boolean isCovidVaccination(ImmunizationsDTO.PatientImmunizationDTO.ImmunizationDTO immuDto) {
         return true;    // TODO: just assume all listed vaccines are against COVID for now?
 //        return immuDto.getTradeName().toUpperCase().contains("COVID");
     }
 
-    private String getVaccinationStatusForDozeNumber(int doseNo){
-        if(doseNo <= 0){
+    private String getVaccinationStatusForDozeNumber(int doseNo) {
+        if (doseNo <= 0) {
             return "Unvaccinated";
-        }
-        else if(doseNo == 1){
+        } else if (doseNo == 1) {
             return "Partially vaccinated";
-        }
-        else if(doseNo == 2){
+        } else if (doseNo == 2) {
             return "Double-vaccinated"; // aka "Fully vaccinated"
         }
         // real future-proofing right here :-)
-        else if(doseNo == 3){
+        else if (doseNo == 3) {
             return "Triple-vaccinated";
-        }
-        else if(doseNo == 4){
+        } else if (doseNo == 4) {
             return "Quadruple-vaccinated";
-        }
-        else if(doseNo == 5){
+        } else if (doseNo == 5) {
             return "Quintuple-vaccinated";
-        }
-        else if(doseNo == 6){
+        } else if (doseNo == 6) {
             return "Sextuple-vaccinated";
-        }
-        else{
+        } else {
             return "Super-vaccinated";  // :-)
         }
     }
 
-    private boolean isFullyVaccinated(int doseNo, String lastDate){
+    private boolean isFullyVaccinated(int doseNo, String lastDate) {
         //TODO: maybe also check the data to be older then 2 weeks?
-        return doseNo >=2;
+        return doseNo >= 2;
     }
 
     private void onClearScannedData() {
         scannedDto = null;
         updateUI();
-        doSounds(false, false);
+        doSounds(false, null);
     }
 
     private void updateUI() {
@@ -321,33 +331,60 @@ public class VerifyFragment extends StatusFragment {
         }
     }
 
-    private void playSound(Ringtone r) {
+    private void playSound(MediaPlayer sound) {
         if (!playSounds) {
             return;
         }
-        if (r != null && !r.isPlaying()) {
-            r.play();
+        if (sound != null && !sound.isPlaying()) {
+            sound.start();
         }
     }
 
-    private void stopSound(Ringtone r) {
-        if (r != null && r.isPlaying()) {
-            r.stop();
+    private void stopSound(MediaPlayer sound) {
+        if (sound != null && sound.isPlaying()) {
+            sound.stop();
         }
     }
 
-    private void doSounds(boolean play, boolean isGood) {
+    private void releaseSounds() {
+        stopSound(validSound);
+        if (validSound != null) {
+            validSound.release();
+            validSound = null;
+        }
+        stopSound(invalidSound);
+        if (invalidSound != null) {
+            invalidSound.release();
+            invalidSound = null;
+        }
+        stopSound(errorSound);
+        if (errorSound != null) {
+            errorSound.release();
+            errorSound = null;
+        }
+    }
+
+    private void doSounds(boolean play, Sound type) {
         if (play) {
-            if (isGood) {
-                stopSound(badSound);
-                playSound(goodSound);
+            if (type == Sound.Valid) {
+                stopSound(invalidSound);
+                stopSound(errorSound);
+                playSound(validSound);
+            } else if (type == Sound.Invalid) {
+                stopSound(validSound);
+                stopSound(errorSound);
+                playSound(invalidSound);
+            } else if (type == Sound.Error) {
+                stopSound(validSound);
+                stopSound(invalidSound);
+                playSound(errorSound);
             } else {
-                stopSound(goodSound);
-                playSound(badSound);
+                Log.w("sounds", "Unexpected sound type: " + type);
             }
         } else {
-            stopSound(goodSound);
-            stopSound(badSound);
+            stopSound(validSound);
+            stopSound(invalidSound);
+            stopSound(errorSound);
         }
     }
 }

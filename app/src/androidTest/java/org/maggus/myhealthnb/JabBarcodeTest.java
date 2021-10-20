@@ -182,8 +182,8 @@ public class JabBarcodeTest {
         // input shorter then the output
         String sStr = "short string", sStr1 = "short str1ng";
 
-        byte[] rBytes = new JabBarcode.Crypto().wrapBytes(sStr.getBytes(StandardCharsets.UTF_8), 256);
-        byte[] rBytes1 = new JabBarcode.Crypto().wrapBytes(sStr1.getBytes(StandardCharsets.UTF_8), 256);
+        byte[] rBytes = new JabBarcode.Hasher().wrapBytes(sStr.getBytes(StandardCharsets.UTF_8), 256);
+        byte[] rBytes1 = new JabBarcode.Hasher().wrapBytes(sStr1.getBytes(StandardCharsets.UTF_8), 256);
 
         Assert.assertNotNull(rBytes);
         Assert.assertEquals(256, rBytes.length);
@@ -193,8 +193,8 @@ public class JabBarcodeTest {
         sStr = "some very long string to get bytes from for wrapping into shorter buffer";
         sStr1 = "some very 1ong string to get bytes from for wrapping into shorter buffer";
 
-        rBytes = new JabBarcode.Crypto().wrapBytes(sStr.getBytes(StandardCharsets.UTF_8), 8);
-        rBytes1 = new JabBarcode.Crypto().wrapBytes(sStr1.getBytes(StandardCharsets.UTF_8), 8);
+        rBytes = new JabBarcode.Hasher().wrapBytes(sStr.getBytes(StandardCharsets.UTF_8), 8);
+        rBytes1 = new JabBarcode.Hasher().wrapBytes(sStr1.getBytes(StandardCharsets.UTF_8), 8);
 
         Assert.assertNotNull(rBytes);
         Assert.assertEquals(8, rBytes.length);

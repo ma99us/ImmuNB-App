@@ -6,8 +6,10 @@ import org.maggus.myhealthnb.barcode.JabBarcode;
 import java.io.IOException;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper=true)
 public class CryptoChecksumHeader extends ChecksumHeader {
     private Long keyId;
 
