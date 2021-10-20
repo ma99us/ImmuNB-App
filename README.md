@@ -1,6 +1,6 @@
 # ImmuNB
 
-This is an Android app to display and securely verify personal COVID-19 immunization status. 
+ImmuNB is an Android App to display and securely verify personal COVID-19 immunization status. 
 It only works for the residents of New Brunswick, Canada, and requires the user to have a valid account at https://myhealth.gnb.ca/ portal.
 
 ## This is a personal hobby project and in no way associated with MyHealthNB organization.
