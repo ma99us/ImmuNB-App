@@ -1,4 +1,4 @@
-# MyHealthNBLite
+# ImmuNB
 
 This is an Android app to display and securely verify personal COVID-19 immunization status. 
 It only works for the residents of New Brunswick, Canada, and requires the user to have a valid account at https://myhealth.gnb.ca/ portal.
@@ -12,7 +12,9 @@ The best effort is made to protect and not disclose any personal information of 
 ![Present your immunization status as a secure barcode](docs/app_screenshot_barcode.png?raw=true "Present your immunization status as a secure barcode")
 ### Scan another barcode to verify the immunization status:
 ![Scan another barcode to verify the immunization status](docs/app_screenshot_scan.png?raw=true "Scan another barcode to verify the immunization status")
-### Confirm immunization status in the barcode:
+### Confirm or Fail immunization status in the barcode:
 ![Confirm immunization status in the barcode](docs/app_screenshot_verify.png?raw=true "Confirm immunization status in the barcode")
+or
+![Fail immunization status in the barcode](docs/app_screenshot_unvaccinated.png?raw=true "Fail immunization status in the barcode")
 
 Stay safe!
