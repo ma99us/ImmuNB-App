@@ -20,6 +20,7 @@ import org.maggus.myhealthnb.api.dto.ImmunizationsDTO;
 import org.maggus.myhealthnb.barcode.JabBarcode;
 import org.maggus.myhealthnb.barcode.headers.CryptoChecksumHeader;
 import org.maggus.myhealthnb.databinding.FragmentShareBinding;
+import org.maggus.myhealthnb.ui.OnSwipeListener;
 import org.maggus.myhealthnb.ui.SharedViewModel;
 import org.maggus.myhealthnb.ui.StatusFragment;
 
@@ -65,6 +66,8 @@ public class ShareFragment extends StatusFragment {
             }
         });
 
+        setupSwipeListener(root);
+
         return root;
     }
 
@@ -83,6 +86,19 @@ public class ShareFragment extends StatusFragment {
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+    }
+
+    private void setupSwipeListener(View view) {
+        view.setOnTouchListener(new OnSwipeListener(getContext()) {
+            @Override
+            public void onSwipeRight() {
+                getMainActivity().goToFragment(R.id.action_navigation_share_to_navigation_home);
+            }
+
+            public void onSwipeLeft() {
+                getMainActivity().goToFragment(R.id.action_navigation_share_to_navigation_verify);
+            }
+        });
     }
 
     private void generateImmunizationBarcode() {

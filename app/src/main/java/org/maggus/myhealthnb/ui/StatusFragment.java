@@ -3,6 +3,7 @@ package org.maggus.myhealthnb.ui;
 import android.text.Html;
 import android.widget.TextView;
 
+import org.maggus.myhealthnb.MainActivity;
 import org.maggus.myhealthnb.R;
 
 import androidx.fragment.app.Fragment;
@@ -57,5 +58,9 @@ public abstract class StatusFragment extends Fragment {
     protected String colorFromRes(int id) {
         int color = getResources().getColor(id);
         return "#" + String.format("%X", color).substring(2); // !!strip alpha value!!
+    }
+
+    protected MainActivity getMainActivity() {
+        return ((MainActivity) getActivity());
     }
 }

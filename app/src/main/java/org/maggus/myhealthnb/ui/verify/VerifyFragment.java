@@ -26,6 +26,7 @@ import org.maggus.myhealthnb.barcode.JabBarcode;
 import org.maggus.myhealthnb.barcode.headers.ChecksumHeader;
 import org.maggus.myhealthnb.barcode.headers.CryptoChecksumHeader;
 import org.maggus.myhealthnb.databinding.FragmentVerifyBinding;
+import org.maggus.myhealthnb.ui.OnSwipeListener;
 import org.maggus.myhealthnb.ui.SharedViewModel;
 import org.maggus.myhealthnb.ui.StatusFragment;
 
@@ -103,6 +104,8 @@ public class VerifyFragment extends StatusFragment {
             Log.w("sound", "Can't initiate sounds");
         }
 
+        setupSwipeListener(root);
+
         previewView = binding.cameraPreviewView;
 
         cameraProviderFuture = ProcessCameraProvider.getInstance(getContext());
@@ -127,6 +130,15 @@ public class VerifyFragment extends StatusFragment {
         releaseSounds();
         super.onDestroyView();
         binding = null;
+    }
+
+    private void setupSwipeListener(View view) {
+        view.setOnTouchListener(new OnSwipeListener(getContext()) {
+            @Override
+            public void onSwipeRight() {
+                getMainActivity().goToFragment(R.id.action_navigation_verify_to_navigation_share);
+            }
+        });
     }
 
     private void requestCamera() {

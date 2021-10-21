@@ -19,11 +19,22 @@
         android:id="@+id/navigation_share"
         android:name="org.maggus.myhealthnb.ui.share.ShareFragment"
         android:label="@string/title_dashboard"
-        tools:layout="@layout/fragment_share" />
+        tools:layout="@layout/fragment_share">
+        <action
+            android:id="@+id/action_navigation_share_to_navigation_home"
+            app:destination="@id/navigation_home" />
+        <action
+            android:id="@+id/action_navigation_share_to_navigation_verify"
+            app:destination="@id/navigation_verify" />
+    </fragment>
 
     <fragment
         android:id="@+id/navigation_verify"
         android:name="org.maggus.myhealthnb.ui.verify.VerifyFragment"
         android:label="@string/title_notifications"
-        tools:layout="@layout/fragment_verify" />
+        tools:layout="@layout/fragment_verify" >
+        <action
+            android:id="@+id/action_navigation_verify_to_navigation_share"
+            app:destination="@id/navigation_share" />
+    </fragment>
 </navigation>

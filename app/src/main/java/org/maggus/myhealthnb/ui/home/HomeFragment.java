@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
@@ -41,6 +42,7 @@ import org.maggus.myhealthnb.http.BinaryRequest;
 import org.maggus.myhealthnb.http.DocumentRequest;
 import org.maggus.myhealthnb.http.JsonRequest;
 import org.maggus.myhealthnb.http.ResponseListener;
+import org.maggus.myhealthnb.ui.OnSwipeListener;
 import org.maggus.myhealthnb.ui.SharedViewModel;
 import org.maggus.myhealthnb.ui.StatusFragment;
 
@@ -114,6 +116,8 @@ public class HomeFragment extends StatusFragment {
             }
         });
 
+        setupSwipeListener(root);
+
         formatImmunizations(sharedModel.getImmunizations().getValue());
 
         return root;
@@ -123,6 +127,32 @@ public class HomeFragment extends StatusFragment {
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+    }
+
+//    private void disableTouchTheft(View view) {
+//        view.setOnTouchListener(new View.OnTouchListener() {
+//            @Override
+//            public boolean onTouch(View view, MotionEvent motionEvent) {
+//                view.getParent().requestDisallowInterceptTouchEvent(true);
+//                switch (motionEvent.getAction() & MotionEvent.ACTION_MASK) {
+//                    case MotionEvent.ACTION_MOVE:
+//                        view.getParent().requestDisallowInterceptTouchEvent(false);
+//                        break;
+//                }
+//                return false;
+//            }
+//        });
+//    }
+
+    private void setupSwipeListener(View view) {
+        OnSwipeListener l = new OnSwipeListener(getContext()) {
+            public void onSwipeLeft() {
+                getMainActivity().goToFragment(R.id.action_navigation_home_to_navigation_share);
+            }
+        };
+        binding.textScroller.setOnTouchListener(l);
+        binding.loginLayout.setOnTouchListener(l);
+        view.setOnTouchListener(l);
     }
 
     private void updateUI() {
@@ -166,7 +196,7 @@ public class HomeFragment extends StatusFragment {
         sharedModel.setAuthState(null);
         sharedModel.setEnvConfig(null);
         sharedModel.setImmunizations(null);
-        ((MainActivity)getActivity()).writePreferences();
+        getMainActivity().writePreferences();
     }
 
     /**
@@ -181,7 +211,7 @@ public class HomeFragment extends StatusFragment {
 
         ImmunizationsDTO immunizationsDTO = ImmunizationsDTO.buildDummyDTO(unvaccinated, partial, recent);
         sharedModel.setImmunizations(immunizationsDTO.getPatientImmunization());
-        ((MainActivity)getActivity()).writePreferences();
+        getMainActivity().writePreferences();
     }
 
     public void onLogin() {
@@ -445,7 +475,7 @@ public class HomeFragment extends StatusFragment {
                             throw new IllegalArgumentException("Can not find immunizations records!");
                         }
                         sharedModel.setImmunizations(response.getPatientImmunization());
-                        ((MainActivity)getActivity()).writePreferences();
+                        getMainActivity().writePreferences();
                     }
                 },
                 new Response.ErrorListener() {

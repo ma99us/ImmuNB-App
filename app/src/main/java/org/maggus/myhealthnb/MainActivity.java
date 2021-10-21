@@ -8,9 +8,8 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Toast;
-
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
@@ -24,6 +23,7 @@ import org.maggus.myhealthnb.api.dto.ImmunizationsDTO;
 import org.maggus.myhealthnb.barcode.JabBarcode;
 import org.maggus.myhealthnb.barcode.headers.CryptoChecksumHeader;
 import org.maggus.myhealthnb.databinding.ActivityMainBinding;
+import org.maggus.myhealthnb.ui.OnSwipeListener;
 import org.maggus.myhealthnb.ui.SharedViewModel;
 
 public class MainActivity extends AppCompatActivity {
@@ -84,11 +84,13 @@ public class MainActivity extends AppCompatActivity {
 
                 // if we loaded with existing profile, go right ot the barcode Share view
                 Log.d("preferences", "We loaded valid profile from preferences, so swith to barcode view");
-                goToShareFragment();
+                goToFragment(R.id.action_navigation_home_to_navigation_share);
             }
         } catch (Exception e) {
             Log.e("preferences", "Error loading app preferences", e);
             Toast.makeText(this, "Error loading app preferences: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+
+            writePreferences(); // delete current preferences
         }
     }
 
@@ -110,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void goToShareFragment() {
-        navController.navigate(R.id.action_navigation_home_to_navigation_share);
+    public void goToFragment(int action) {
+        navController.navigate(action);
     }
 }

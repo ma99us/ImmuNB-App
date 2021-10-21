@@ -14,7 +14,7 @@ Barcode data itself is encrypted and protected against alterations. It only incl
 
 The Barcode Verifier only sees your Name, DOB (optional/configurable), and number of vaccinations, as a proof of your full-vaccination status.
 
-If you find any security vulnerability that has been inadvertently caused by me, or have any question regarding how the app protectes your privacy, please send me an email and I will surely try to fix it/help you.
+If you find any security vulnerability that has been inadvertently caused by me, or have any question regarding how the app protects your privacy, please send me an email and I will surely try to fix it/help you.
 
 Yours sincerely,  
 Mikhail Gerdov.  
