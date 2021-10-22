@@ -19,18 +19,17 @@ The best effort is made to protect and secure any personal information of the us
 or
 ![Fail immunization status in the barcode](docs/app_screenshot_unvaccinated.png?raw=true "Fail immunization status in the barcode")
 
-## Unfortunately, I can not publish my app on Google Play Store due to their policies:
+## How to Install:
+### Unfortunately, I can not publish my app on Google Play Store due to their policies
 ![Denied by Google Play](docs/google_play_denied.png?raw=true "Denied by Google Play")
 
-So to install this app, download the latest release APK from here:
+So to install this app, download the latest release *app-release.apk* file from the latest Release, and open it on your phone.
 
-[Releases](https://github.com/ma99us/ImmuNB-App/releases "Releases")
+###[Releases](./releases "Releases")
 
 NOTE: You might have to enable installation from "Untrusted Sources" in your phone settings, and ignore Play Protect warnings, Ugh!
 I assure you, this app is harmless. And does not steal your data. Take a look at the Privacy Policy:
-
 [Privacy Policy](./PRIVACY_POLICY.md?raw=true "Privacy Policy")
 
 Stay safe!
-
 Mike (aka ma99us)
