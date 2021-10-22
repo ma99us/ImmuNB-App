@@ -25,7 +25,7 @@ or
 
 So to install this app, download the latest release *app-release.apk* file from the latest Release, and open it on your phone.
 
-### [Releases](./releases "Releases")
+### [Releases](https://github.com/ma99us/ImmuNB-App/releases "Releases")
 
 NOTE: You might have to enable installation from "Untrusted Sources" in your phone settings, and ignore Play Protect warnings, Ugh!
 I assure you, this app is harmless. And does not steal your data. Take a look at the 
