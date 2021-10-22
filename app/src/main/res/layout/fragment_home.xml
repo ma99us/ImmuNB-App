@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/body_bg"
     tools:context=".ui.home.HomeFragment">
 
     <ScrollView
@@ -67,7 +68,7 @@
                 android:gravity="center"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                android:text="If you do not have an account yet, create one here:" />
+                android:text="@string/account_create" />
 
             <TextView
                 android:id="@+id/myHealthNBLinkText"
@@ -78,7 +79,7 @@
                 android:textSize="20sp"
                 android:textStyle="bold"
                 android:autoLink="web"
-                android:text="https://myhealth.gnb.ca/" />
+                android:text="@string/myhealth_url" />
 
             <TextView
                 android:id="@+id/loginTitleText"
@@ -88,32 +89,34 @@
                 android:gravity="center"
                 android:textSize="22sp"
                 android:textStyle="bold"
-                android:text="Login to MyHealthNB account" />
+                android:text="@string/login_to_myhealthnb_account" />
 
             <TextView
                 android:id="@+id/loginEmailText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="EMAIL ADDRESS" />
+                android:text="@string/email_address" />
 
             <EditText
                 android:id="@+id/loginEmailEdit"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ems="10"
+                android:hint="@string/enter_your_e_mail_address"
                 android:inputType="textEmailAddress" />
 
             <TextView
                 android:id="@+id/loginPassText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="PASSWORD" />
+                android:text="@string/password" />
 
             <EditText
                 android:id="@+id/loginPasswordEdit"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ems="10"
+                android:hint="@string/enter_your_password"
                 android:inputType="textPassword" />
 
             <Button
@@ -121,7 +124,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="Login"
+                android:text="@string/login"
                 />
         </LinearLayout>
 
@@ -137,7 +140,8 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:backgroundTint="@color/error_bg"
-                android:text="Reset" />
+                android:textColor="@color/white"
+                android:text="@string/reset" />
 
         </LinearLayout>
         </LinearLayout>

@@ -122,6 +122,8 @@ public class VerifyFragment extends StatusFragment {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
         playSounds = prefs.getBoolean("play_sounds", true);
         Log.d("sounds", "Sounds " + (playSounds ? " enabled" : " disabled"));
+
+        getView().setKeepScreenOn(prefs.getBoolean("keep_awake", true));
     }
 
     @Override
@@ -175,6 +177,7 @@ public class VerifyFragment extends StatusFragment {
     }
 
     private void startCamera() {
+        formatStatusText("<h6>Please wait...</h6>", Status.Note);
         final ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(getContext());
         cameraProviderFuture.addListener(() -> {
             try {
@@ -201,8 +204,6 @@ public class VerifyFragment extends StatusFragment {
     }
 
     private void bindCameraPreview(@NonNull ProcessCameraProvider processCameraProvider) {
-//        setHtmlText("<h6>Scan Immunization records QR-code</h6>");
-
         // connect camera to an image preview surface
         previewView.setImplementationMode(PreviewView.ImplementationMode.PERFORMANCE);  // PERFORMANCE or COMPATIBLE ?
 
@@ -241,8 +242,12 @@ public class VerifyFragment extends StatusFragment {
             cameraProvider = processCameraProvider;
             camera = processCameraProvider.bindToLifecycle((LifecycleOwner) this, cameraSelector, imageAnalysis, preview);
             Log.d("camera", "Camera is ready");
+            updateUI();
         } catch (Exception ex) {
             Log.e("camera", "Camera initialization error", ex);
+            formatStatusText("Camera error", Status.Warning);
+            Toast.makeText(getContext(), "Camera error",
+                    Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -274,7 +279,7 @@ public class VerifyFragment extends StatusFragment {
 
     private void formatImmunizations(ImmunizationsDTO.PatientImmunizationDTO dto) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<h6>COVID-19 Immunization Record</h6>");
+        sb.append("<h6>COVID-19 Immunization Records</h6>");
         sb.append("<big><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName().toUpperCase() + " "
                 + dto.getLastName().toUpperCase() + "</font></b></big><br>");
         if (dto.getDateOfBirth() != null) {
@@ -360,7 +365,9 @@ public class VerifyFragment extends StatusFragment {
             formatStatusText("Barcode scanned", Status.Success);
             scannedDataLayout.setVisibility(View.VISIBLE);
         } else {
-            setHtmlText("<h6>Scan Immunization records QR-code</h6>");
+            if (camera != null) {
+                setHtmlText("<h6>Scan Immunization records QR-code</h6>");
+            }
             scannedDataLayout.setVisibility(View.GONE);
         }
     }

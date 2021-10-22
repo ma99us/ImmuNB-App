@@ -28,6 +28,20 @@ android {
     buildFeatures {
         viewBinding true
     }
+    flavorDimensions "version"
+    productFlavors {
+        demo {
+            dimension "version"
+//            applicationIdSuffix ".demo"
+            versionNameSuffix "-demo"
+            buildConfigField 'boolean', 'IS_DEMO', 'true'
+        }
+        full {
+            dimension "version"
+            buildConfigField 'boolean', 'IS_DEMO', 'false'
+        }
+    }
+
 }
 
 dependencies {

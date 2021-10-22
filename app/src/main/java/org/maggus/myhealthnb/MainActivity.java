@@ -55,6 +55,10 @@ public class MainActivity extends AppCompatActivity {
 
         // read stored immunization state
         readPreferences();
+
+        if (org.maggus.myhealthnb.BuildConfig.IS_DEMO) {
+            Toast.makeText(this, "*** THIS IS A DEMO APP ***", Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override

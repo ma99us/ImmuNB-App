@@ -7,8 +7,9 @@
     <string name="title_activity_settings">App Settings</string>
 
     <!-- Preference Titles -->
-    <string name="api_settings_header">MyHealthNB settings</string>
-    <string name="ui_settings_header">Verification settings</string>
+    <string name="api_settings_header">MyHealthNB connection settings</string>
+    <string name="ui_settings_header">User Interface settings</string>
+    <string name="barcode_settings_header">Barcode settings</string>
 
     <!-- api Preferences -->
     <string name="signature_title">Your login email</string>
@@ -17,4 +18,13 @@
     <string name="show_dob_title">Share your date of birth</string>
     <string name="play_sounds_title">Play verification sounds</string>
     <string name="ok">Ok</string>
+    <string name="reset">Reset</string>
+    <string name="login">Login</string>
+    <string name="enter_your_password">Enter your password</string>
+    <string name="password">PASSWORD</string>
+    <string name="enter_your_e_mail_address">Enter your e-mail address</string>
+    <string name="email_address">EMAIL ADDRESS</string>
+    <string name="login_to_myhealthnb_account">Login to MyHealthNB account</string>
+    <string name="myhealth_url">https://myhealth.gnb.ca/</string>
+    <string name="account_create">If you do not have an account yet, create one here:</string>
 </resources>

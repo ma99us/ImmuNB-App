@@ -9,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
@@ -51,6 +52,9 @@ public class ShareFragment extends StatusFragment {
         binding = FragmentShareBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+        shareDob = prefs.getBoolean("share_dob", true);
+
         textView = binding.textDashboard;
         imageView = binding.imageView;
         imageView.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
@@ -61,7 +65,6 @@ public class ShareFragment extends StatusFragment {
             @Override
             public void onChanged(@Nullable ImmunizationsDTO.PatientImmunizationDTO dto) {
                 // show barcode once dto changes
-                barcode = null;
                 generateImmunizationBarcode();
             }
         });
@@ -74,12 +77,17 @@ public class ShareFragment extends StatusFragment {
     @Override
     public void onResume() {
         super.onResume();
+
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
-        shareDob = prefs.getBoolean("share_dob", true);
-        Log.d("barcode", "Share DOB " + (shareDob ? " enabled" : " disabled"));
-        // show barcode once settings changes
-        barcode = null;
-        generateImmunizationBarcode();
+        boolean newShareDob = prefs.getBoolean("share_dob", true);
+        if (newShareDob != shareDob) {
+            shareDob = newShareDob;
+            // reset existing barcode
+            barcode = null;
+            generateImmunizationBarcode();
+        }
+
+        getView().setKeepScreenOn(prefs.getBoolean("keep_awake", true));
     }
 
     @Override
@@ -107,15 +115,17 @@ public class ShareFragment extends StatusFragment {
             setHtmlText("<h6>No Immunization records for the barcode.<br>Please login to MyHealthNB first.</h6>");
             imageView.setVisibility(View.GONE);
         } else {
-            setHtmlText("<h6>Your Immunization barcode</h6>" +
-                    "<h3><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName() + " " + dto.getLastName() + "</font></h3>");
-
             final int width = imageView.getWidth();
             final int height = imageView.getHeight();
-            if (width == 0 || height == 0) {
+            if (barcode != null || width == 0 || height == 0) {
+                // ui is not ready yet, or barcode already shown
                 return;
             }
 
+            Log.d("barcode", "Share DOB " + (shareDob ? " enabled" : " disabled"));
+
+            setHtmlText("<h6>Please wait...</h6>");
+            imageView.setImageResource(R.drawable.loading_buffering);
             imageView.setVisibility(View.VISIBLE);
 
             Executor mSingleThreadExecutor = Executors.newSingleThreadExecutor();
@@ -142,6 +152,16 @@ public class ShareFragment extends StatusFragment {
                             @Override
                             public void run() {
                                 imageView.setImageBitmap(bitmap);
+
+                                // populate header text
+                                StringBuilder sb = new StringBuilder();
+                                sb.append("<b>Your Immunization records QR-code</b><br>" +
+                                        "<big><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName().toUpperCase() + " "
+                                        + dto.getLastName().toUpperCase() + "</font></b></big><br>");
+                                if (shareDob) {
+                                    sb.append("<b>" + dto.getDateOfBirth() + "</b>");
+                                }
+                                setHtmlText(sb.toString());
                             }
                         });
 
@@ -150,7 +170,9 @@ public class ShareFragment extends StatusFragment {
                             @Override
                             public void run() {
                                 Log.e("barcode", "Error generating barcode", e);
-                                formatStatusText("Error generating barcode", Status.Error);
+                                formatStatusText("Error generating barcode", Status.Warning);
+                                Toast.makeText(getContext(), "Error generating barcode",
+                                        Toast.LENGTH_SHORT).show();
                             }
                         });
                     }

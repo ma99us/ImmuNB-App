@@ -1,14 +1,23 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Theme.MyHealthNB" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <item name="android:textColor">@color/dark_text</item>
+        <item name="android:textColorPrimary">@color/dark_text</item>
+        <item name="colorControlActivated">@color/black</item>
+        <item name="colorControlNormal">@color/grey</item>
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/header_bg</item>
-        <item name="colorPrimaryVariant">@color/body_bg</item>
-        <item name="colorOnPrimary">@color/black</item>
+        <item name="colorPrimaryVariant">@color/header_bg</item>
+        <item name="colorOnPrimary">@color/white</item>
         <!-- Secondary brand color. -->
         <item name="colorSecondary">@color/header_bg</item>
-        <item name="colorSecondaryVariant">@color/body_bg</item>
-        <item name="colorOnSecondary">@color/black</item>
+        <item name="colorSecondaryVariant">@color/header_bg</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <!-- surface -->
+        <item name="colorSurface">@color/header_bg</item>
+        <item name="colorOnSurface">@color/white</item>
+        <item name="colorOnBackground">@color/dark_text</item>
+        <item name="android:colorBackground">@color/white</item>
         <!-- Status bar color. -->
         <item name="android:statusBarColor">@color/header_bg</item>
         <!-- Customize your theme here. -->

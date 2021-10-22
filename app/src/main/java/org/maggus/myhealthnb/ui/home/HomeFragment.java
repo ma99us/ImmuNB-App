@@ -3,12 +3,10 @@ package org.maggus.myhealthnb.ui.home;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
@@ -27,7 +25,6 @@ import com.android.volley.toolbox.Volley;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
-import org.maggus.myhealthnb.MainActivity;
 import org.maggus.myhealthnb.R;
 import org.maggus.myhealthnb.api.AuthState;
 import org.maggus.myhealthnb.api.EnvConfig;
@@ -35,8 +32,6 @@ import org.maggus.myhealthnb.api.dto.AuthorizationCodeDTO;
 import org.maggus.myhealthnb.api.dto.DemographicsDTO;
 import org.maggus.myhealthnb.api.dto.ImmunizationsDTO;
 import org.maggus.myhealthnb.api.dto.UserAuthorizationDTO;
-import org.maggus.myhealthnb.barcode.JabBarcode;
-import org.maggus.myhealthnb.barcode.headers.CryptoChecksumHeader;
 import org.maggus.myhealthnb.databinding.FragmentHomeBinding;
 import org.maggus.myhealthnb.http.BinaryRequest;
 import org.maggus.myhealthnb.http.DocumentRequest;
@@ -87,8 +82,11 @@ public class HomeFragment extends StatusFragment {
         buttonLogin = binding.buttonLogin;
         buttonLogin.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                onLogin();
-//                onDummyLogin(false, false, false);  // for Dev and #TEST ONLY!
+                if (org.maggus.myhealthnb.BuildConfig.IS_DEMO) {
+                    onDummyLogin(false, false, false);  // for Dev and #TEST ONLY!
+                } else {
+                    onLogin();
+                }
             }
         });
         buttonReset = binding.buttonReset;
@@ -159,7 +157,7 @@ public class HomeFragment extends StatusFragment {
                     "to synchronize your local profile.</h6>");
         } else {
             StringBuilder sb = new StringBuilder();
-            sb.append("<h6>Your COVID-19 Immunization Record</h6>");
+            sb.append("<h6>Your COVID-19 Immunization Records</h6>");
             sb.append("<big><b><font color='" + colorFromRes(R.color.success_bg) + "'>" + dto.getFirstName().toUpperCase() + " "
                     + dto.getLastName().toUpperCase() + "</font></b></big><br>");
             sb.append("<b>" + dto.getDateOfBirth() + "</b>");

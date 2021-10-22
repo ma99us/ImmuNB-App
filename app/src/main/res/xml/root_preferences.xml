@@ -7,18 +7,27 @@
 <!--            app:useSimpleSummaryProvider="true" />-->
 <!--    </PreferenceCategory>-->
 
-    <PreferenceCategory app:title="@string/ui_settings_header">
+    <PreferenceCategory app:title="@string/barcode_settings_header">
         <SwitchPreferenceCompat
             app:key="share_dob"
             app:defaultValue="true"
             app:summary="Include your date of birth in the barcode"
             app:title="@string/show_dob_title" />
 
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/ui_settings_header">
         <SwitchPreferenceCompat
             app:key="play_sounds"
             app:defaultValue="true"
             app:summary="Play different sounds based on scanned barcode vaccination result"
             app:title="@string/play_sounds_title" />
+
+        <SwitchPreferenceCompat
+            app:key="keep_awake"
+            app:defaultValue="true"
+            app:summary="Prevent the phone screen from going dark, while showing or scanning the barcodes"
+            app:title="Keep screen on" />
     </PreferenceCategory>
 
 </PreferenceScreen>
