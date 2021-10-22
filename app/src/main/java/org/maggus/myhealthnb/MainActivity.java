@@ -113,6 +113,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void goToFragment(int action) {
-        navController.navigate(action);
+        try {
+            navController.navigate(action);
+        } catch (Exception ex) {
+            Log.w("fragment", "Error while navigating to another Fragment; " + ex.getMessage());
+        }
     }
 }

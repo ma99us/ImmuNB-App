@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/body_bg"
-    android:paddingTop="?attr/actionBarSize"
+    android:paddingTop="8dp"
     >
 
     <com.google.android.material.bottomnavigation.BottomNavigationView

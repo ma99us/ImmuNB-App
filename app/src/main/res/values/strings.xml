@@ -16,4 +16,5 @@
     <!-- ui Preferences -->
     <string name="show_dob_title">Share your date of birth</string>
     <string name="play_sounds_title">Play verification sounds</string>
+    <string name="ok">Ok</string>
 </resources>

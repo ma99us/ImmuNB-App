@@ -1,5 +1,7 @@
 package org.maggus.myhealthnb.ui.verify;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
@@ -48,7 +50,11 @@ public class QRCodeImageAnalyzer implements ImageAnalysis.Analyzer {
                 listener.onQRCodeFound(result.getText());
             } catch (FormatException | ChecksumException | NotFoundException e) {
                 listener.qrCodeNotFound();
+            } catch (Exception e) {
+                Log.e("camera", "Error in QR parser", e);
+                listener.qrCodeNotFound();
             }
+
         }
 
         image.close();

@@ -52,7 +52,8 @@ public class VerifyFragment extends StatusFragment {
     private SharedViewModel sharedModel;
     private FragmentVerifyBinding binding;
     private PreviewView previewView;
-    private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
+    private volatile ProcessCameraProvider cameraProvider;
+    private volatile Camera camera;
     private LinearLayout scannedDataLayout;
     private ImageView dataStatusImageView;
     private TextView textDataView;
@@ -108,8 +109,6 @@ public class VerifyFragment extends StatusFragment {
 
         previewView = binding.cameraPreviewView;
 
-        cameraProviderFuture = ProcessCameraProvider.getInstance(getContext());
-
         updateUI();
 
         requestCamera();
@@ -127,6 +126,7 @@ public class VerifyFragment extends StatusFragment {
 
     @Override
     public void onDestroyView() {
+        stopCamera();
         releaseSounds();
         super.onDestroyView();
         binding = null;
@@ -152,12 +152,12 @@ public class VerifyFragment extends StatusFragment {
                         .setIcon(android.R.drawable.ic_dialog_alert)
                         .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int whichButton) {
-                                ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CAMERA);
+                                requestPermissions(new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CAMERA);
                             }
                         })
                         .setNegativeButton(android.R.string.no, null).show();
             } else {
-                ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CAMERA);
+                requestPermissions(new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CAMERA);
             }
         }
     }
@@ -175,10 +175,17 @@ public class VerifyFragment extends StatusFragment {
     }
 
     private void startCamera() {
+        final ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(getContext());
         cameraProviderFuture.addListener(() -> {
             try {
-                ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
-                bindCameraPreview(cameraProvider);
+                final ProcessCameraProvider processCameraProvider = cameraProviderFuture.get();
+                getActivity().runOnUiThread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                bindCameraPreview(processCameraProvider);
+                            }
+                        });
             } catch (ExecutionException | InterruptedException e) {
                 Log.e("camera", "Error starting camera", e);
                 Toast.makeText(getContext(), "Error starting camera: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -186,11 +193,18 @@ public class VerifyFragment extends StatusFragment {
         }, ContextCompat.getMainExecutor(getContext()));
     }
 
-    private void bindCameraPreview(@NonNull ProcessCameraProvider cameraProvider) {
-        setHtmlText("<h6>Scan Immunization records QR-code</h6>");
+    private void stopCamera() {
+        if (cameraProvider != null && camera != null) {
+            cameraProvider.unbindAll();
+            camera = null;
+        }
+    }
+
+    private void bindCameraPreview(@NonNull ProcessCameraProvider processCameraProvider) {
+//        setHtmlText("<h6>Scan Immunization records QR-code</h6>");
 
         // connect camera to an image preview surface
-        previewView.setImplementationMode(PreviewView.ImplementationMode.PERFORMANCE);  // COMPATIBLE ?
+        previewView.setImplementationMode(PreviewView.ImplementationMode.PERFORMANCE);  // PERFORMANCE or COMPATIBLE ?
 
         Preview preview = new Preview.Builder().build();
 
@@ -203,11 +217,14 @@ public class VerifyFragment extends StatusFragment {
         // image analyzer
 
         ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
-                .setTargetResolution(new Size(1280, 720))
+                //.setTargetResolution(new Size(1280, 720))
+                .setTargetResolution(new Size(720, 720))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build();
 
         imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(getContext()), new QRCodeImageAnalyzer(new QRCodeFoundListener() {
+            private int frameCounter = 0;
+
             @Override
             public void onQRCodeFound(String _qrCode) {
                 onBarcodeFound(_qrCode);
@@ -215,13 +232,18 @@ public class VerifyFragment extends StatusFragment {
 
             @Override
             public void qrCodeNotFound() {
-//                textView.setText("No barcode");
+//                textView.setText("No barcode @" + (frameCounter++));
             }
         }));
 
         // bind it all together to the camera and to the the app lifecycles
-        Camera camera = cameraProvider.bindToLifecycle((LifecycleOwner) this, cameraSelector, imageAnalysis, preview);
-        Log.d("camera", "Camera is ready");
+        try {
+            cameraProvider = processCameraProvider;
+            camera = processCameraProvider.bindToLifecycle((LifecycleOwner) this, cameraSelector, imageAnalysis, preview);
+            Log.d("camera", "Camera is ready");
+        } catch (Exception ex) {
+            Log.e("camera", "Camera initialization error", ex);
+        }
     }
 
     private void onBarcodeFound(String qrCode) {
@@ -283,7 +305,7 @@ public class VerifyFragment extends StatusFragment {
         sb.append("<p>");
         sb.append("<b><font color='" + colorFromRes(color) + "'>" + statusStr.toUpperCase() + "</font></b>");
         if (latestCovidImmunizationDate != null) {
-            sb.append("<br><b>since</b><br>");
+            sb.append("<br><b>since</b> ");
             sb.append("<b><font color='" + colorFromRes(color) + "'>" + latestCovidImmunizationDate + "</font></b>");
         }
         sb.append("</p>");
@@ -338,7 +360,7 @@ public class VerifyFragment extends StatusFragment {
             formatStatusText("Barcode scanned", Status.Success);
             scannedDataLayout.setVisibility(View.VISIBLE);
         } else {
-            setHtmlText("<h6>Scan and verify an Immunization barcode.</h6>");
+            setHtmlText("<h6>Scan Immunization records QR-code</h6>");
             scannedDataLayout.setVisibility(View.GONE);
         }
     }

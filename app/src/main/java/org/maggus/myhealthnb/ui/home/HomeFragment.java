@@ -129,24 +129,10 @@ public class HomeFragment extends StatusFragment {
         binding = null;
     }
 
-//    private void disableTouchTheft(View view) {
-//        view.setOnTouchListener(new View.OnTouchListener() {
-//            @Override
-//            public boolean onTouch(View view, MotionEvent motionEvent) {
-//                view.getParent().requestDisallowInterceptTouchEvent(true);
-//                switch (motionEvent.getAction() & MotionEvent.ACTION_MASK) {
-//                    case MotionEvent.ACTION_MOVE:
-//                        view.getParent().requestDisallowInterceptTouchEvent(false);
-//                        break;
-//                }
-//                return false;
-//            }
-//        });
-//    }
-
     private void setupSwipeListener(View view) {
         OnSwipeListener l = new OnSwipeListener(getContext()) {
             public void onSwipeLeft() {
+                hideSoftwareKeyboard();
                 getMainActivity().goToFragment(R.id.action_navigation_home_to_navigation_share);
             }
         };
@@ -199,13 +185,17 @@ public class HomeFragment extends StatusFragment {
         getMainActivity().writePreferences();
     }
 
+    private void hideSoftwareKeyboard() {
+        // hide the keyboard
+        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(getView().getWindowToken(), 0);
+    }
+
     /**
      * For #TEST ONLY!
      */
     public void onDummyLogin(boolean unvaccinated, boolean partial, boolean recent) {
-        // hide the keyboard
-        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(getView().getWindowToken(), 0);
+        hideSoftwareKeyboard();
 
         formatStatusText("Connecting... (#TEST)");
 
@@ -222,9 +212,7 @@ public class HomeFragment extends StatusFragment {
             return;
         }
 
-        // hide the keyboard
-        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(getView().getWindowToken(), 0);
+        hideSoftwareKeyboard();
 
         formatStatusText("Connecting...");
 
@@ -274,7 +262,8 @@ public class HomeFragment extends StatusFragment {
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        formatStatusText("Config didn't work!", Status.Error);
+                        Log.e("http", "MyHealthNB configuration error", error);
+                        formatStatusText("MyHealthNB configuration did not load.<br>Please try again later.", Status.Error);
                     }
                 }));
     }
@@ -311,8 +300,8 @@ public class HomeFragment extends StatusFragment {
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Log.e("http", "That didn't work!", error);
-                        formatStatusText("Site didn't work!", Status.Error);
+                        Log.e("http", "MyHealthNB website error", error);
+                        formatStatusText("MyHealthNB website did not load.<br>Please try again later.", Status.Error);
                     }
                 }) {
 
@@ -364,8 +353,8 @@ public class HomeFragment extends StatusFragment {
                         }
 
                         if (sharedModel.getAuthState().getAuthorizationCode() == null) {
-                            Log.e("http", "Login didn't work!", error);
-                            formatStatusText("Login didn't work!", Status.Error);
+                            Log.e("http", "Login failed.", error);
+                            formatStatusText("Can not Login.<br>Make sure you entered correct e-mail and password.", Status.Error);
                             return; // stop here
                         }
 
@@ -416,8 +405,8 @@ public class HomeFragment extends StatusFragment {
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Log.e("http", "Authorization didn't work!", error);
-                        formatStatusText("Authorization didn't work!", Status.Error);
+                        Log.e("http", "Authorization error", error);
+                        formatStatusText("Authorization error.<br>Please try again.", Status.Error);
                     }
                 }) {
             @Override
@@ -449,8 +438,8 @@ public class HomeFragment extends StatusFragment {
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Log.e("http", "Demographics didn't work!", error);
-                        formatStatusText("Demographics didn't work!", Status.Error);
+                        Log.e("http", "Demographics error", error);
+                        formatStatusText("Error retrieving Demographics information.<br>Please try again.", Status.Error);
                     }
                 }) {
             @Override
@@ -481,8 +470,8 @@ public class HomeFragment extends StatusFragment {
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        Log.e("http", "Immunizations records didn't work!", error);
-                        formatStatusText("Immunizations records didn't work!", Status.Error);
+                        Log.e("http", "Immunizations records error", error);
+                        formatStatusText("Error retrieving Immunizations records.<br>Please try again.", Status.Error);
                     }
                 }) {
             @Override
